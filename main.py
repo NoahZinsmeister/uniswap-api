@@ -1,28 +1,57 @@
-import datetime
+from flask import Flask
+from google.cloud import bigquery
 
-from flask import Flask, render_template
+import json
+import requests
+
+import web3;
+
+providerURL = "https://chainkit-1.dev.kyokan.io/eth";
+
+web3 = web3.Web3(web3.Web3.HTTPProvider(providerURL))
+
+#ETHDAI exchange
+exchange_address = web3.toChecksumAddress("0x09cabEC1eAd1c0Ba254B09efb3EE13841712bE14")
 
 app = Flask(__name__)
 
-
 @app.route('/')
-def root():
-    # For the sake of example, use static information to inflate the template.
-    # This will be replaced with real information in later steps.
-    dummy_times = [datetime.datetime(2018, 1, 1, 10, 0, 0),
-                   datetime.datetime(2018, 1, 2, 10, 30, 0),
-                   datetime.datetime(2018, 1, 3, 11, 0, 0),
-                   ]
+def index():
+	return "{}";
 
-    return render_template('index.html', times=dummy_times)
+# crawl an exchange's history
+@app.route('/tasks/crawl')
+def crawl():
+	#TODO load this from datastore
+	mostRecentCrawledBlock = 6910037;
+
+	# load the exchange contract ABI
+	EXCHANGE_ABI = open("static/exchangeABI.json", "r").read();
+	exchange_contract = web3.eth.contract(address=exchange_address, abi=EXCHANGE_ABI);
+
+	logs = web3.eth.getLogs(
+	    {
+     	   	"fromBlock": mostRecentCrawledBlock,
+        	"toBlock": "latest",
+        	"address": [
+            	exchange_address
+        	]
+    	}
+	)
+	log = logs[0];
+
+	print(str(log) + "\n\n");
+	for topic in log["topics"]:
+		topic = topic.hex().replace("0x000000000000000000000000", "0x");
+		
+		print(web3.toInt(hexstr=topic));
+
+	return "{todo}";
 
 
 if __name__ == '__main__':
     # This is used when running locally only. When deploying to Google App
     # Engine, a webserver process such as Gunicorn will serve the app. This
     # can be configured by adding an `entrypoint` to app.yaml.
-    # Flask's development server will automatically serve static files in
-    # the "static" directory. See:
-    # http://flask.pocoo.org/docs/1.0/quickstart/#static-files. Once deployed,
-    # App Engine itself will serve those files as configured in app.yaml.
     app.run(host='127.0.0.1', port=8080, debug=True)
+# [END gae_python37_app]
