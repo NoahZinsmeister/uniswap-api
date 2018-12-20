@@ -22,10 +22,8 @@ providerURL = "https://chainkit-1.dev.kyokan.io/eth";
 
 web3 = web3.Web3(web3.Web3.HTTPProvider(providerURL))
 
-#ETHDAI exchange
+#ETHDAI exchange TODO testing
 exchange_address = to_checksum_address("0x09cabEC1eAd1c0Ba254B09efb3EE13841712bE14")
-
-TOPIC_TOKEN_PURCHASE = "";
 
 app = Flask(__name__)
 
@@ -36,6 +34,7 @@ def index():
 # crawl an exchange's history
 @app.route('/tasks/crawl')
 def crawl():
+	#TODO take a parameter for which exchange to crawl
 	#TODO load this from datastore
 	last_updated_block_number = 6910037;
 
@@ -107,37 +106,54 @@ def crawl():
     	}
 	)
 
+	# for every log we pulled
 	for log in logs:
+		# get the topic list
 		log_topics = log["topics"];
 
+		# parse out the first topic hash to determine what event this was
 		topic_hash = remove_0x_prefix(log_topics[0].hex());
 
+		# grab the event data that we generated above for this topic
 		event = topic_hashes[topic_hash];
 
+		# skip transfer events
 		if (event["event"] == "Transfer"):
 			continue;
 
+		# prepare the object that we'll be putting into bigquery
 		event_clean = {
 			"event" : event["event"],
 			"tx_hash" : log["transactionHash"].hex()
 		}
 
+		# for each of the rest of the topics (ie inputs)
 		for i in range(1, len(log_topics)):
+			# get the topic hash
 			topic = log_topics[i];
 
-			# remove padding
+			# remove any padding
 			topic = topic.hex().replace("0x000000000000000000000000", "0x");
 			
+			# get the type for this input
 			input_type = event["input_types"][i - 1];
+
+			# get the name for this input
 			input_name = event["input_names"][i - 1];
 
+			# if the type is address, just put into clean
 			if (input_type == 'address'):
 				event_clean[input_name] = topic;
 			elif (input_type == 'uint256'):
+				# else if it's an integer, parse it first
 				value = web3.toInt(hexstr=topic);
+				# then put into clean
 				event_clean[input_name] = value;
 
+		# TODO bigquery here
 		print(event_clean);
+
+		# TODO update most recent block we crawled
 
 	return "{todo}";
 
