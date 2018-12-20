@@ -1,6 +1,18 @@
 from flask import Flask
 from google.cloud import bigquery
 
+from eth_utils import (
+    add_0x_prefix,
+    apply_to_return_value,
+    from_wei,
+    is_address,
+    is_checksum_address,
+    keccak as eth_utils_keccak,
+    remove_0x_prefix,
+    to_checksum_address,
+    to_wei,
+)
+
 import json
 import requests
 
@@ -11,7 +23,9 @@ providerURL = "https://chainkit-1.dev.kyokan.io/eth";
 web3 = web3.Web3(web3.Web3.HTTPProvider(providerURL))
 
 #ETHDAI exchange
-exchange_address = web3.toChecksumAddress("0x09cabEC1eAd1c0Ba254B09efb3EE13841712bE14")
+exchange_address = to_checksum_address("0x09cabEC1eAd1c0Ba254B09efb3EE13841712bE14")
+
+TOPIC_TOKEN_PURCHASE = "";
 
 app = Flask(__name__)
 
@@ -29,6 +43,33 @@ def crawl():
 	EXCHANGE_ABI = open("static/exchangeABI.json", "r").read();
 	exchange_contract = web3.eth.contract(address=exchange_address, abi=EXCHANGE_ABI);
 
+	topic_hashes = {}
+
+	# collect up event topics
+	for event in exchange_contract.events._events:
+		event_name = event["name"];
+		event_inputs = event["inputs"];
+
+		# build up the event input that we'll Keccak-256 hash
+		event_input = [];
+		event_input.append(event_name);
+		event_input.append("(");
+
+		for input in event_inputs:
+			event_input.append(input["type"]);
+			event_input.append(",");
+
+		#delete last comma
+		del event_input[-1]
+
+		event_input.append(")");
+
+		# determine the topic hash (ie "RemoveLiquidity(address,uint256,uint256)")
+		event_input_txt = "".join(event_input);
+		topic_hash = eth_utils_keccak(text=event_input_txt).hex();
+
+		topic_hashes[topic_hash] = event_name;
+
 	logs = web3.eth.getLogs(
 	    {
      	   	"fromBlock": mostRecentCrawledBlock,
@@ -38,13 +79,12 @@ def crawl():
         	]
     	}
 	)
-	log = logs[0];
 
-	print(str(log) + "\n\n");
-	for topic in log["topics"]:
-		topic = topic.hex().replace("0x000000000000000000000000", "0x");
-		
-		print(web3.toInt(hexstr=topic));
+	for log in logs:
+		log_topics = log["topics"];
+		topic_hash = remove_0x_prefix(log_topics[0].hex());
+
+		event_type = topic_hashes[topic_hash];
 
 	return "{todo}";
 
