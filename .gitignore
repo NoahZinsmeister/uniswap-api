@@ -2,3 +2,5 @@
 
 lib
 env
+
+test_local.sh

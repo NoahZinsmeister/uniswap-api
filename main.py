@@ -22,8 +22,6 @@ providerURL = "https://chainkit-1.dev.kyokan.io/eth";
 
 web3 = web3.Web3(web3.Web3.HTTPProvider(providerURL))
 
-#ETHDAI exchange TODO testing
-exchange_address = to_checksum_address("0x09cabEC1eAd1c0Ba254B09efb3EE13841712bE14")
 
 app = Flask(__name__)
 
@@ -38,8 +36,12 @@ def crawl():
 	#TODO load this from datastore
 	last_updated_block_number = 6910037;
 
+	#ETHDAI exchange TODO testing
+	exchange_address = to_checksum_address("0x09cabEC1eAd1c0Ba254B09efb3EE13841712bE14")
+
 	# load the exchange contract ABI
 	EXCHANGE_ABI = open("static/exchangeABI.json", "r").read();
+	
 	exchange_contract = web3.eth.contract(address=exchange_address, abi=EXCHANGE_ABI);
 
 	topic_hashes = {}
@@ -58,7 +60,7 @@ def crawl():
 		event_input_to_hash.append("(");
 
 		# store the data needed to decode log data
-		event_data = {
+		event_data = {			
 			"event" : event_name,
 			"input_types" : [],
 			"input_names" : []
@@ -123,6 +125,7 @@ def crawl():
 
 		# prepare the object that we'll be putting into bigquery
 		event_clean = {
+			"exchange" : exchange_address,
 			"event" : event["event"],
 			"tx_hash" : log["transactionHash"].hex()
 		}
