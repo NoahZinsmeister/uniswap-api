@@ -1,4 +1,5 @@
 from flask import Flask
+
 from google.cloud import bigquery
 
 from eth_utils import (
@@ -22,7 +23,6 @@ providerURL = "https://chainkit-1.dev.kyokan.io/eth";
 
 web3 = web3.Web3(web3.Web3.HTTPProvider(providerURL))
 
-
 app = Flask(__name__)
 
 @app.route('/')
@@ -32,12 +32,12 @@ def index():
 # crawl an exchange's history
 @app.route('/tasks/crawl')
 def crawl():
+	#ETHDAI exchange TODO take as a parameter
+	exchange_address = to_checksum_address("0x09cabEC1eAd1c0Ba254B09efb3EE13841712bE14")
+
 	#TODO take a parameter for which exchange to crawl
 	#TODO load this from datastore
 	last_updated_block_number = 6910037;
-
-	#ETHDAI exchange TODO testing
-	exchange_address = to_checksum_address("0x09cabEC1eAd1c0Ba254B09efb3EE13841712bE14")
 
 	# load the exchange contract ABI
 	EXCHANGE_ABI = open("static/exchangeABI.json", "r").read();
@@ -108,6 +108,8 @@ def crawl():
     	}
 	)
 
+	rows_to_insert = []
+
 	# for every log we pulled
 	for log in logs:
 		# get the topic list
@@ -125,9 +127,17 @@ def crawl():
 
 		# prepare the object that we'll be putting into bigquery
 		event_clean = {
-			"exchange" : exchange_address,
+			# "exchange" : exchange_address,
 			"event" : event["event"],
-			"tx_hash" : log["transactionHash"].hex()
+			"tx_hash" : log["transactionHash"].hex(),
+			
+			"eth" : None,
+			"tokens" : None,
+
+			"buyer" : None,
+			"provider" : None,
+
+			"block" : log["blockNumber"]
 		}
 
 		# for each of the rest of the topics (ie inputs)
@@ -143,6 +153,12 @@ def crawl():
 
 			# get the name for this input
 			input_name = event["input_names"][i - 1];
+			
+			# clean the amount of columns into just eth and token amounts
+			if ("eth_" in input_name):
+				input_name = "eth";
+			elif ("token" in input_name):
+				input_name = "tokens";
 
 			# if the type is address, just put into clean
 			if (input_type == 'address'):
@@ -153,12 +169,26 @@ def crawl():
 				# then put into clean
 				event_clean[input_name] = value;
 
-		# TODO bigquery here
-		print(event_clean);
+		rows_to_insert.append(event_clean);
 
-		# TODO update most recent block we crawled
+	# get the bigquery client
+	bq_client = bigquery.Client()
 
-	return "{todo}";
+	# get the dataset reference
+	exchange_dataset_ref = bq_client.dataset("exchanges_v1")
+	
+	# get the table reference for this exchange's history
+	exchange_table_ref = exchange_dataset_ref.table("exchange_history_" + exchange_address);
+
+	# get the table
+	exchange_table = bq_client.get_table(exchange_table_ref);
+
+	# now push the new rows to the table
+	# bq_client.insert_rows(exchange_table, rows_to_insert);
+		
+	# TODO update most recent block we crawled
+
+	return "{}";
 
 
 if __name__ == '__main__':
