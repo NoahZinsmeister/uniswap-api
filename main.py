@@ -1,6 +1,8 @@
 from flask import Flask
+from flask import request
 
 from google.cloud import bigquery
+from google.cloud import datastore
 
 from eth_utils import (
     add_0x_prefix,
@@ -23,21 +25,63 @@ providerURL = "https://chainkit-1.dev.kyokan.io/eth";
 
 web3 = web3.Web3(web3.Web3.HTTPProvider(providerURL))
 
+genesis_block_number = 6627917
+
 app = Flask(__name__)
 
 @app.route('/')
 def index():
 	return "{}";
 
+@app.route('/admin/initexchange')
+def init_exchange():
+	# get the exchange address parameter
+	exchange_address = request.args.get("exchange");
+	
+	if (exchange_address is None):
+		return "{error}" #TODO return actual json error	
+
+	# TODO create an exchange info object in the datastore
+	return "{}"
+
 # crawl an exchange's history
 @app.route('/tasks/crawl')
 def crawl():
-	#ETHDAI exchange TODO take as a parameter
-	exchange_address = to_checksum_address("0x09cabEC1eAd1c0Ba254B09efb3EE13841712bE14")
+	# get the exchange address parameter
+	exchange_address = request.args.get("exchange");
+	
+	if (exchange_address is None):
+		return "{error}" #TODO return actual json error
 
-	#TODO take a parameter for which exchange to crawl
-	#TODO load this from datastore
-	last_updated_block_number = 6910037;
+	exchange_address = to_checksum_address(exchange_address)
+
+	# query the exchange info to pull the last updated block number
+	exchange_info = None;
+	ds_client = datastore.Client();
+
+	# create the exchange info query
+	query = ds_client.query(kind='exchange');
+	query.add_filter("address", "=", exchange_address);
+
+	# run the query
+	query_iterator = query.fetch();
+	for entity in query_iterator:
+		exchange_info = entity;
+		break;
+
+	if (exchange_info == None):
+		return "{error: no exchange found for this address}" # TODO return a proper json error
+
+	last_updated_block_number = exchange_info["last_updated_block"];
+
+	# if the last updated block number hasn't been set, then initialize it to the uniswap genesis block number (so we don't )
+	# try pulling from very first block which is slow
+	if (last_updated_block_number == 0):
+		last_updated_block_number = genesis_block_number;
+
+	bq_dataset_id = "exchanges_v1";
+
+	bq_table_prefix = "exchange_history_";
 
 	# load the exchange contract ABI
 	EXCHANGE_ABI = open("static/exchangeABI.json", "r").read();
@@ -110,6 +154,8 @@ def crawl():
 
 	rows_to_insert = []
 
+	max_block_encountered = 0;
+
 	# for every log we pulled
 	for log in logs:
 		# get the topic list
@@ -125,6 +171,12 @@ def crawl():
 		if (event["event"] == "Transfer"):
 			continue;
 
+		blockNumber = log["blockNumber"];
+
+		# track the maximum block number that we encounter
+		if (blockNumber > max_block_encountered):
+			max_block_encountered = blockNumber;
+
 		# prepare the object that we'll be putting into bigquery
 		event_clean = {
 			# "exchange" : exchange_address,
@@ -137,7 +189,7 @@ def crawl():
 			"buyer" : None,
 			"provider" : None,
 
-			"block" : log["blockNumber"]
+			"block" : blockNumber
 		}
 
 		# for each of the rest of the topics (ie inputs)
@@ -175,21 +227,32 @@ def crawl():
 	bq_client = bigquery.Client()
 
 	# get the dataset reference
-	exchange_dataset_ref = bq_client.dataset("exchanges_v1")
+	exchange_dataset_ref = bq_client.dataset(bq_dataset_id)
 	
 	# get the table reference for this exchange's history
-	exchange_table_ref = exchange_dataset_ref.table("exchange_history_" + exchange_address);
+	exchange_table_ref = exchange_dataset_ref.table(bq_table_prefix + exchange_address);
 
 	# get the table
 	exchange_table = bq_client.get_table(exchange_table_ref);
 
 	# now push the new rows to the table
-	# bq_client.insert_rows(exchange_table, rows_to_insert);
+	errors = bq_client.insert_rows(exchange_table, rows_to_insert);
+
+	if (errors == []):
+		# success
+		print("Successfully inserted " + str(len(rows_to_insert)) + "  rows");
+
+		# update most recent block we crawled
+		# update the datastore exchange info object for the next crawl call
+		exchange_info.update({
+			"last_updated_block" : max_block_encountered
+    	})
 		
-	# TODO update most recent block we crawled
+		ds_client.put(exchange_info)
+	else:
+		print(errors);	
 
 	return "{}";
-
 
 if __name__ == '__main__':
     # This is used when running locally only. When deploying to Google App
