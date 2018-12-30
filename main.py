@@ -141,6 +141,8 @@ def crawl():
 		# associate the event data with its topic hash
 		topic_hashes[topic_hash] = event_data;
 
+	print("fetching contract logs from block " + str(last_updated_block_number));
+
 	# grab all the contract logs for this exchange (since the last updated crawled block)
 	logs = web3.eth.getLogs(
 	    {
@@ -151,6 +153,12 @@ def crawl():
         	]
     	}
 	)
+
+	print("received " + str(len(logs)) + " logs");
+
+	# quit early if we didn't return any logs
+	if (len(logs) == 0):
+		return "{no updated logs found}" # TODO return actual json
 
 	rows_to_insert = []
 
@@ -240,12 +248,12 @@ def crawl():
 
 	if (errors == []):
 		# success
-		print("Successfully inserted " + str(len(rows_to_insert)) + "  rows");
+		print("Successfully inserted " + str(len(rows_to_insert)) + " rows");
 
 		# update most recent block we crawled
 		# update the datastore exchange info object for the next crawl call
 		exchange_info.update({
-			"last_updated_block" : max_block_encountered
+			"last_updated_block" : (max_block_encountered + 1)
     	})
 		
 		ds_client.put(exchange_info)
