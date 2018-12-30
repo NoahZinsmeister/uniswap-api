@@ -44,6 +44,17 @@ def init_exchange():
 	# TODO create an exchange info object in the datastore
 	return "{}"
 
+@app.route('/admin/clearexchange')
+def clear_exchange():
+	# get the exchange address parameter
+	exchange_address = request.args.get("exchange");
+	
+	if (exchange_address is None):
+		return "{error}" #TODO return actual json error	
+
+	# TODO delete exchange table and reset datastore exchange info
+	return "{}"
+
 # crawl an exchange's history
 @app.route('/tasks/crawl')
 def crawl():
@@ -185,17 +196,18 @@ def crawl():
 		if (blockNumber > max_block_encountered):
 			max_block_encountered = blockNumber;
 
+		event_type = event["event"];
+
 		# prepare the object that we'll be putting into bigquery
 		event_clean = {
 			# "exchange" : exchange_address,
-			"event" : event["event"],
+			"event" : event_type,
 			"tx_hash" : log["transactionHash"].hex(),
 			
 			"eth" : None,
 			"tokens" : None,
 
-			"buyer" : None,
-			"provider" : None,
+			"user" : None,
 
 			"block" : blockNumber
 		}
@@ -219,6 +231,8 @@ def crawl():
 				input_name = "eth";
 			elif ("token" in input_name):
 				input_name = "tokens";
+			elif (("buyer" in input_name) or ("provider" in input_name)):
+				input_name = "user";
 
 			# if the type is address, just put into clean
 			if (input_type == 'address'):
@@ -226,6 +240,15 @@ def crawl():
 			elif (input_type == 'uint256'):
 				# else if it's an integer, parse it first
 				value = web3.toInt(hexstr=topic);
+
+				# modify value per event type
+				if (input_name == "eth"):
+					if ((event_type == "EthPurchase") or (event_type == "RemoveLiquidity")):
+						value = -value; # negative eth since the user is withdrawing eth from the pool
+				elif (input_name == "tokens"):
+					if ((event_type == "TokenPurchase") or (event_type == "RemoveLiquidity")):
+						value = -value; # negative tokens since the user is withdrawing tokens from the pool
+
 				# then put into clean
 				event_clean[input_name] = value;
 
