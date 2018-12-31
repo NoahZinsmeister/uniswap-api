@@ -1,6 +1,7 @@
 Flask==1.0.2
-Werkzeug<0.13.0,>=0.12.0
+Werkzeug==0.14.0
+grpcio>=1.2.0
 google-cloud-datastore==1.6.0
 google-cloud-bigquery==0.31.0
-google-api-core==1.1.0
+google-api-core==1.7.0
 web3==4.0.0
