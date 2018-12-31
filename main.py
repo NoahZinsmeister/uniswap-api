@@ -156,16 +156,19 @@ def crawl():
 
 	print("fetching contract logs from block " + str(last_updated_block_number) + " to " + str(last_updated_block_number + max_blocks_to_pull));
 
-	# grab all the contract logs for this exchange (since the last updated crawled block)
-	logs = web3.eth.getLogs(
-	    {
-     	   	"fromBlock": last_updated_block_number,
-        	"toBlock": (last_updated_block_number + max_blocks_to_pull),
-        	"address": [
-            	exchange_address
-        	]
-    	}
-	)
+	try:
+		# grab all the contract logs for this exchange (since the last updated crawled block)
+		logs = web3.eth.getLogs(
+		    {
+	     	   	"fromBlock": last_updated_block_number,
+	        	"toBlock": (last_updated_block_number + max_blocks_to_pull),
+	        	"address": [
+	            	exchange_address
+	        	]
+	    	}
+		)
+	except Exception as e:
+		return "{" + str(e) + "}"; # TODO actual json error
 
 	print("received " + str(len(logs)) + " logs");
 
@@ -176,6 +179,8 @@ def crawl():
 	rows_to_insert = []
 
 	max_block_encountered = 0;
+
+	block_to_timestamps = {}
 
 	# for every log we pulled
 	for log in logs:
@@ -194,6 +199,15 @@ def crawl():
 
 		blockNumber = log["blockNumber"];
 
+		# check if we have a timestamp for this block,
+		if ((blockNumber in block_to_timestamps) == False):
+			# if not, then fetch it
+			block_data = web3.eth.getBlock(blockNumber);
+
+			block_timestamp = block_data["timestamp"];
+
+			block_to_timestamps[blockNumber] = block_timestamp;
+
 		# track the maximum block number that we encounter
 		if (blockNumber > max_block_encountered):
 			max_block_encountered = blockNumber;
@@ -210,6 +224,8 @@ def crawl():
 			"tokens" : None,
 
 			"user" : None,
+
+			"timestamp" : block_to_timestamps[blockNumber],
 
 			"block" : blockNumber
 		}
@@ -268,10 +284,16 @@ def crawl():
 	# get the table
 	exchange_table = bq_client.get_table(exchange_table_ref);
 
-	# now push the new rows to the table
-	errors = bq_client.insert_rows(exchange_table, rows_to_insert);
+	error = None;
+	insert_errors = [];
 
-	if (errors == []):
+	try:
+		# now push the new rows to the table
+		insert_errors = bq_client.insert_rows(exchange_table, rows_to_insert);
+	except Exception as e:
+		error = e;
+
+	if ((insert_errors == []) and (error == None)):
 		max_block_encountered += 1;
 
 		# success
@@ -282,12 +304,10 @@ def crawl():
 		exchange_info.update({
 			"last_updated_block" : max_block_encountered
     	})
-		
-		ds_client.put(exchange_info)
-	else:
-		print(errors);	
 
-	return "{}";
+		ds_client.put(exchange_info)
+
+	return "{error=" + str(error) + "}";
 
 if __name__ == '__main__':
     # This is used when running locally only. When deploying to Google App
