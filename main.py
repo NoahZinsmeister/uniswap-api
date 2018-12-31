@@ -57,6 +57,90 @@ def clear_exchange():
 	# TODO delete exchange table and reset datastore exchange info
 	return "{}"
 
+# routinely fetch blocks and their timestamps
+@app.route('/tasks/fetchblocks')
+def fetch_blocks():
+	# pull the latest block number that we should start with
+	ds_client = datastore.Client();
+
+	block_datastore_info = None;
+
+	# determine the last block that we fetched
+	query = ds_client.query(kind='blockdata');
+	
+	query_iterator = query.fetch();
+
+	for entity in query_iterator:
+		block_datastore_info = entity;
+		break;
+
+	last_fetched_block = block_datastore_info["last_fetched_block"]
+
+	# we haven't fetched any, so start at the genesis uniswap block
+	if (last_fetched_block == 0):
+		last_fetched_block = genesis_block_number;
+
+	rows_to_insert = []
+
+	max_block_to_fetch = last_fetched_block + 100; # fetch 100 blocks at a time
+
+	print("Fetching block data for " + str(last_fetched_block) + " to " + str(max_block_to_fetch));
+
+	for blockNumber in range(last_fetched_block, max_block_to_fetch):
+		# fetch the timestamp for this block
+		block_data = web3.eth.getBlock(blockNumber);
+
+		# this block doesn't exist!
+		if (block_data is None):
+			max_block_to_fetch = blockNumber
+			break;
+
+		block_timestamp = block_data["timestamp"];
+
+		block_row = {
+			"block" : blockNumber,
+			"timestamp" : block_timestamp
+		}
+
+		rows_to_insert.append(block_row);
+
+		print(block_row);
+
+	error = None;
+
+	try:
+		insert_errors = [];
+
+		if (len(rows_to_insert) > 0):
+			# get the bigquery client
+			bq_client = bigquery.Client()
+
+			bq_dataset_id = "blocks_v1";
+
+			# get the dataset reference
+			block_dataset_ref = bq_client.dataset(bq_dataset_id)
+			
+			# get the table reference for this exchange's history
+			block_table_ref = block_dataset_ref.table("block_data");
+
+			# get the table
+			block_table = bq_client.get_table(block_table_ref);
+			# now push the new rows to the table
+			insert_errors = bq_client.insert_rows(block_table, rows_to_insert);
+
+		if (insert_errors == []):
+			print("Successfully inserted " + str(len(rows_to_insert)) + " rows. Updated last fetched block to " + str(max_block_to_fetch));
+		
+			block_datastore_info.update({
+				"last_fetched_block" : max_block_to_fetch
+	    	})
+
+			ds_client.put(block_datastore_info)
+	except Exception as e:
+		error = e;
+
+	return "{" + str(error) + "}" #todo actual json error
+
 # crawl an exchange's history
 @app.route('/tasks/crawl')
 def crawl():
@@ -70,10 +154,12 @@ def crawl():
 
 	# query the exchange info to pull the last updated block number
 	exchange_info = None;
+
 	ds_client = datastore.Client();
 
 	# create the exchange info query
 	query = ds_client.query(kind='exchange');
+
 	query.add_filter("address", "=", exchange_address);
 
 	# run the query
