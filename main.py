@@ -25,7 +25,9 @@ providerURL = "https://chainkit-1.dev.kyokan.io/eth";
 
 web3 = web3.Web3(web3.Web3.HTTPProvider(providerURL))
 
-genesis_block_number = 6627917
+genesis_block_number = 6627917 # Uniswap creation https://etherscan.io/tx/0xc1b2646d0ad4a3a151ebdaaa7ef72e3ab1aa13aa49d0b7a3ca020f5ee7b1b010
+
+max_blocks_to_pull = 35000 # if roughly 15 seconds per block, 4 blocks per minute then this is roughly 1 week's worth of transactions
 
 app = Flask(__name__)
 
@@ -152,13 +154,13 @@ def crawl():
 		# associate the event data with its topic hash
 		topic_hashes[topic_hash] = event_data;
 
-	print("fetching contract logs from block " + str(last_updated_block_number));
+	print("fetching contract logs from block " + str(last_updated_block_number) + " to " + str(last_updated_block_number + max_blocks_to_pull));
 
 	# grab all the contract logs for this exchange (since the last updated crawled block)
 	logs = web3.eth.getLogs(
 	    {
      	   	"fromBlock": last_updated_block_number,
-        	"toBlock": "latest",
+        	"toBlock": (last_updated_block_number + max_blocks_to_pull),
         	"address": [
             	exchange_address
         	]
@@ -270,13 +272,15 @@ def crawl():
 	errors = bq_client.insert_rows(exchange_table, rows_to_insert);
 
 	if (errors == []):
+		max_block_encountered += 1;
+
 		# success
-		print("Successfully inserted " + str(len(rows_to_insert)) + " rows");
+		print("Successfully inserted " + str(len(rows_to_insert)) + " rows. Updated last block to " + str(max_block_encountered));
 
 		# update most recent block we crawled
 		# update the datastore exchange info object for the next crawl call
 		exchange_info.update({
-			"last_updated_block" : (max_block_encountered + 1)
+			"last_updated_block" : max_block_encountered
     	})
 		
 		ds_client.put(exchange_info)
