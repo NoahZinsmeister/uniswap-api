@@ -4,6 +4,12 @@ from flask import request
 from google.cloud import bigquery
 from google.cloud import datastore
 
+from google.cloud import tasks_v2beta3
+from google.protobuf import timestamp_pb2
+
+from datetime import datetime
+from datetime import timedelta
+
 from eth_utils import (
     add_0x_prefix,
     apply_to_return_value,
@@ -80,6 +86,7 @@ def fetch_blocks():
 	if (last_fetched_block == 0):
 		last_fetched_block = genesis_block_number;
 
+	# this will hold the rows that we'll insert into bigquery
 	rows_to_insert = []
 
 	max_block_to_fetch = last_fetched_block + 100; # fetch 100 blocks at a time
@@ -90,13 +97,15 @@ def fetch_blocks():
 		# fetch the timestamp for this block
 		block_data = web3.eth.getBlock(blockNumber);
 
-		# this block doesn't exist!
+		# this block doesn't exist! we surpassed the latest block
 		if (block_data is None):
+			# set the max block to fetch as the current block number and we'll start from here in the next fetchBlocks call
 			max_block_to_fetch = blockNumber
 			break;
-
+		# pull the timestamp
 		block_timestamp = block_data["timestamp"];
 
+		# prepare the bq row
 		block_row = {
 			"block" : blockNumber,
 			"timestamp" : block_timestamp
@@ -104,13 +113,12 @@ def fetch_blocks():
 
 		rows_to_insert.append(block_row);
 
-		print(block_row);
-
 	error = None;
 
 	try:
 		insert_errors = [];
 
+		# only insert into bq if we have any rows
 		if (len(rows_to_insert) > 0):
 			# get the bigquery client
 			bq_client = bigquery.Client()
@@ -138,6 +146,13 @@ def fetch_blocks():
 			ds_client.put(block_datastore_info)
 	except Exception as e:
 		error = e;
+		print(str(error));
+
+	# if we didn't encounter any error then schedule a new fetch block task
+	if (error == None):
+		delay_in_seconds = 60 * 5; # update blocks every 5 minutes
+
+		scheduleTask(delay_in_seconds, "/tasks/fetchblocks");
 
 	return "{" + str(error) + "}" #todo actual json error
 
@@ -394,6 +409,27 @@ def crawl():
 		ds_client.put(exchange_info)
 
 	return "{error=" + str(error) + "}";
+
+def scheduleTask(delay_in_seconds, endpoint):
+	# schedule the next call to refresh debts here
+	task_client = tasks_v2beta3.CloudTasksClient()
+
+	# Convert "seconds from now" into an rfc3339 datetime string.
+	d = datetime.utcnow() + timedelta(seconds=delay_in_seconds);
+	timestamp = timestamp_pb2.Timestamp();
+	timestamp.FromDatetime(d);
+	
+	parent = task_client.queue_path("uniswap-analytics", "us-east1", "my-appengine-queue");
+
+	task = {
+		'app_engine_http_request': {
+			'http_method': 'GET',
+			'relative_uri': endpoint
+		},
+		'schedule_time' : timestamp
+	}
+	
+	task_client.create_task(parent, task);
 
 if __name__ == '__main__':
     # This is used when running locally only. When deploying to Google App
