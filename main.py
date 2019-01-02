@@ -36,7 +36,7 @@ BLOCKS_DATASET_ID = "blocks_v1"
 BLOCKS_TABLE_ID = "block_data"
 
 GENSIS_BLOCK_NUMBER = 6627917 # Uniswap creation https://etherscan.io/tx/0xc1b2646d0ad4a3a151ebdaaa7ef72e3ab1aa13aa49d0b7a3ca020f5ee7b1b010
-MAX_BLOCKS_TO_CRAWL = 35000 # if roughly 15 seconds per block, 4 blocks per minute then this is roughly 1 week's worth of transactions
+MAX_BLOCKS_TO_CRAWL = 10000 # estimating 12 seconds per block, 5 blocks per minute, 2000 minutes, ~33 hours worth of transactions
 
 web3 = web3.Web3(web3.Web3.HTTPProvider(PROVIDER_URL))
 
@@ -94,9 +94,9 @@ def fetch_blocks():
 	# this will hold the rows that we'll insert into bigquery
 	rows_to_insert = []
 
-	max_block_to_fetch = last_fetched_block + 50; # fetch 50 blocks at a time TODO uncomment
+	max_block_to_fetch = last_fetched_block + 50; # fetch 50 blocks at a time
 
-	print("Fetching block data for " + str(last_fetched_block) + " to " + str(max_block_to_fetch));
+	print("Fetching info for blocks " + str(last_fetched_block) + " to " + str(max_block_to_fetch));
 
 	for blockNumber in range(last_fetched_block, max_block_to_fetch):
 		# fetch the timestamp for this block
@@ -135,7 +135,7 @@ def fetch_blocks():
 			insert_errors = bq_client.insert_rows(block_table, rows_to_insert);
 
 		if (insert_errors == []):
-			print("Successfully inserted " + str(len(rows_to_insert)) + " rows. Updated last fetched block to " + str(max_block_to_fetch));
+			print("Successfully inserted " + str(len(rows_to_insert)) + " block info rows. Updated last fetched block to " + str(max_block_to_fetch));
 		
 			block_datastore_info.update({
 				"last_fetched_block" : max_block_to_fetch
@@ -158,12 +158,18 @@ def fetch_blocks():
 @app.route('/tasks/crawl')
 def crawl_exchange():
 	# get the exchange address parameter
-	exchange_address = request.args.get("exchange");
+	exchange_address_param = request.args.get("exchange");
 	
-	if (exchange_address is None):
+	if (exchange_address_param is None):
 		return "{error}" #TODO return actual json error
 
-	exchange_address = to_checksum_address(exchange_address)
+	exchange_address = None;
+
+	try:
+		exchange_address = to_checksum_address(exchange_address_param)
+	except Exception as e:
+		print(e);
+		return "{error}"; # TODO return actual json insert_errors
 
 	# query the exchange info to pull the last updated block number
 	exchange_info = None;
@@ -255,7 +261,7 @@ def crawl_exchange():
 
 	fetch_to_block_number = last_updated_block_number + MAX_BLOCKS_TO_CRAWL;
 
-	print("fetching contract logs from block " + str(last_updated_block_number) + " to " + str(fetch_to_block_number));
+	print("fetching exchange logs from block " + str(last_updated_block_number) + " to " + str(fetch_to_block_number));
 
 	try:
 		# grab all the contract logs for this exchange (since the last updated crawled block)
@@ -271,7 +277,7 @@ def crawl_exchange():
 	except Exception as e:
 		return "{" + str(e) + "}"; # TODO actual json error
 
-	print("received " + str(len(logs)) + " logs");
+	print("received " + str(len(logs)) + " exchange logs");
 
 	# quit early if we didn't return any logs
 	if (len(logs) == 0):
@@ -328,7 +334,7 @@ def crawl_exchange():
 
 			# if we don't have a timestamp for this block then skip this log item
 			if ((str(block_number) in block_to_timestamps) == False):
-				print("No timestmap found for block " + str(block_number));
+				print("No timestamp found for block " + str(block_number));
 				continue;
 
 			block_timestamp = block_to_timestamps[str(block_number)];
@@ -423,7 +429,7 @@ def crawl_exchange():
 				latest_block_encountered += 1;
 
 				# success
-				print("Successfully inserted " + str(len(rows_to_insert)) + " rows. Updated last block to " + str(latest_block_encountered));
+				print("Successfully inserted " + str(len(rows_to_insert)) + " (" + exchange_address + ") history rows. Updated last fetched block to " + str(latest_block_encountered));
 
 				# update most recent block we crawled
 				# update the datastore exchange info object for the next crawl call
@@ -435,9 +441,14 @@ def crawl_exchange():
 		else:
 			print("0 rows to insert, skipping...");
 	except Exception as e:
+		print(e);
 		error = e;
 
-	# TODO schedule next crawl task for this exchange
+	# if we didn't encounter any error then schedule a new fetch block task
+	if (error == None):
+		delay_in_seconds = 60 * 15; # update exchanges every 15 minutes
+
+		scheduleTask(delay_in_seconds, "/tasks/crawl?exchange=" + exchange_address);
 
 	return "{error=" + str(error) + "}";
 
