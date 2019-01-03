@@ -28,6 +28,8 @@ import time
 
 import web3;
 
+from uniswap.history import v1_get_history
+
 PROJECT_ID = "uniswap-analytics"
 TASK_QUEUE_ID = "my-appengine-queue"
 PROVIDER_URL = "https://chainkit-1.dev.kyokan.io/eth";
@@ -153,6 +155,10 @@ def fetch_blocks():
 		scheduleTask(delay_in_seconds, "/tasks/fetchblocks"); 
 
 	return "{" + str(error) + "}" #todo actual json error
+
+@app.route('/api/v1/history')
+def api_v1_history():
+	return v1_get_history();
 
 # crawl an exchange's history
 @app.route('/tasks/crawl')
