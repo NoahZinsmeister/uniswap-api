@@ -1,6 +1,8 @@
 from flask import Flask
 from flask import request
 
+import traceback
+
 from google.cloud import bigquery
 from google.cloud import datastore
 
@@ -322,6 +324,11 @@ def crawl_exchange():
 		# track the latest block that we encounter
 		latest_block_encountered = 0;
 
+		# used to track the current eth total in the exchange pool
+		cur_eth_total = int(exchange_info["cur_eth_total"]);
+		# used to track the current token total in the exchange pool
+		cur_tokens_total = int(exchange_info["cur_tokens_total"]);
+
 		try:
 			# for every log we pulled
 			for log in logs:			
@@ -361,6 +368,9 @@ def crawl_exchange():
 					
 					"eth" : None,
 					"tokens" : None,
+
+					"cur_eth_total" : None,
+					"cur_tokens_total" : None,
 
 					"user" : None,
 
@@ -407,12 +417,23 @@ def crawl_exchange():
 								value = -value; # negative tokens since the user is withdrawing tokens from the pool
 
 						# then put into clean
-						event_clean[input_name] = value;
+						event_clean[input_name] = str(value);
+
+				cur_eth_total += int(event_clean["eth"]);
+
+				cur_tokens_total += int(event_clean["tokens"]);
+
+				# track the current eth and token totals as of this transaction
+				event_clean["cur_eth_total"] = str(cur_eth_total);
+				
+				event_clean["cur_tokens_total"] = str(cur_tokens_total);
 
 				rows_to_insert.append(event_clean);
 		except Exception as e:
 			# bail if we encounter any type of exception while parsing logs
-			print(e);
+			tb = traceback.format_exc()
+			print(tb);
+			
 			return "{error=" + str(e) + "}";
 
 		# get the dataset reference
@@ -435,19 +456,23 @@ def crawl_exchange():
 					latest_block_encountered += 1;
 
 					# success
-					print("Successfully inserted " + str(len(rows_to_insert)) + " (" + exchange_address + ") history rows. Updated last fetched block to " + str(latest_block_encountered));
+					print("Successfully inserted " + str(len(rows_to_insert)) + " (" + exchange_address + ") history rows. Updated last fetched block to " 
+						+ str(latest_block_encountered) + ". cur_eth_total to " + str(cur_eth_total) + ", cur_tokens_total to " + str(cur_tokens_total));
 
 					# update most recent block we crawled
 					# update the datastore exchange info object for the next crawl call
 					exchange_info.update({
-						"last_updated_block" : latest_block_encountered
+						"last_updated_block" : latest_block_encountered,
+						"cur_eth_total" : str(cur_eth_total),
+						"cur_tokens_total" : str(cur_tokens_total)
 			    	})
 
 					ds_client.put(exchange_info)
 			else:
 				print("0 rows to insert, skipping...");
 		except Exception as e:
-			print(e);
+			tb = traceback.format_exc()
+			print(tb);	
 			error = e;
 
 	# if we didn't encounter any error then schedule a new fetch block task
