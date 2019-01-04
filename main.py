@@ -285,170 +285,170 @@ def crawl_exchange():
 
 	print("received " + str(len(logs)) + " exchange logs");
 
-	# quit early if we didn't return any logs
-	if (len(logs) == 0):
-		return "{no updated logs found}" # TODO return actual json
-
-	# pull the timestamps from bigquery for the blocks that we fetched
-	# get the bigquery client
-	bq_client = bigquery.Client()
-
-	block_table = get_block_info_table(bq_client);
- 
-	block_table_name = "`" + PROJECT_ID + "." + BLOCKS_DATASET_ID + "." + BLOCKS_TABLE_ID + "`"
-
-	# query all the blocks and their associated timestamps
-	block_query = bq_client.query("""
-        SELECT
-          CAST(block as STRING) as block, CAST(timestamp as INT64) as timestamp
-        FROM """ + block_table_name + """
-        WHERE block >= """ + str(last_updated_block_number) + """ and block <= """ + str(fetch_to_block_number) + """ order by block asc""")
-
-	block_results = block_query.result();
-
-	block_to_timestamps = {}
-
-	# fill the block -> timestamps map
-	for row in block_results:
-		block_to_timestamps[row.get("block")] = row.get("timestamp");
-
-	print("Pulled " + str(len(block_to_timestamps.keys())) + " block-to-timestamps from BQ");
-
-	# holds the rows that we'll insert into bigquery for this exchange
-	rows_to_insert = []
-
-	# track the latest block that we encounter
-	latest_block_encountered = 0;
-
-	try:
-		# for every log we pulled
-		for log in logs:			
-			# get the topic list
-			log_topics = log["topics"];
-
-			# parse out the first topic hash to determine what event this was
-			topic_hash = remove_0x_prefix(log_topics[0].hex());
-
-			# grab the event data that we generated above for this topic
-			event = topic_hashes[topic_hash];
-
-			# skip transfer events
-			if (event["event"] == "Transfer"):
-				continue;
-
-			block_number = log["blockNumber"];
-
-			# if we don't have a timestamp for this block then skip this log item
-			if ((str(block_number) in block_to_timestamps) == False):
-				print("No timestamp found for block " + str(block_number));
-				continue;
-
-			block_timestamp = block_to_timestamps[str(block_number)];
-
-			# track the maximum block number that we encounter
-			if (block_number > latest_block_encountered):
-				latest_block_encountered = block_number;
-
-			event_type = event["event"];
-
-			# prepare the object that we'll be putting into bigquery
-			event_clean = {
-				# "exchange" : exchange_address,
-				"event" : event_type,
-				"tx_hash" : log["transactionHash"].hex(),
-				
-				"eth" : None,
-				"tokens" : None,
-
-				"user" : None,
-
-				"timestamp" : block_timestamp,
-
-				"block" : block_number
-			}
-
-			# for each of the rest of the topics (ie inputs)
-			for i in range(1, len(log_topics)):
-				# get the topic hash
-				topic = log_topics[i];
-
-				# remove any padding
-				topic = topic.hex().replace("0x000000000000000000000000", "0x");
-				
-				# get the type for this input
-				input_type = event["input_types"][i - 1];
-
-				# get the name for this input
-				input_name = event["input_names"][i - 1];
-				
-				# clean the amount of columns into just eth and token amounts
-				if ("eth_" in input_name):
-					input_name = "eth";
-				elif ("token" in input_name):
-					input_name = "tokens";
-				elif (("buyer" in input_name) or ("provider" in input_name)):
-					input_name = "user";
-
-				# if the type is address, just put into clean
-				if (input_type == 'address'):
-					event_clean[input_name] = topic;
-				elif (input_type == 'uint256'):
-					# else if it's an integer, parse it first
-					value = web3.toInt(hexstr=topic);
-
-					# modify value per event type
-					if (input_name == "eth"):
-						if ((event_type == "EthPurchase") or (event_type == "RemoveLiquidity")):
-							value = -value; # negative eth since the user is withdrawing eth from the pool
-					elif (input_name == "tokens"):
-						if ((event_type == "TokenPurchase") or (event_type == "RemoveLiquidity")):
-							value = -value; # negative tokens since the user is withdrawing tokens from the pool
-
-					# then put into clean
-					event_clean[input_name] = value;
-
-			rows_to_insert.append(event_clean);
-	except Exception as e:
-		# bail if we encounter any type of exception while parsing logs
-		print(e);
-		return "{error=" + str(e) + "}";
-
-	# get the dataset reference
-	exchange_dataset_ref = bq_client.dataset(bq_dataset_id)
-	
-	# get the table reference for this exchange's history
-	exchange_table_ref = exchange_dataset_ref.table(bq_table_prefix + exchange_address);
-
-	# get the table
-	exchange_table = bq_client.get_table(exchange_table_ref);
-
 	error = None;
 
-	try:
-		# only try to insert into BQ if we have any rows
-		if (len(rows_to_insert) > 0):
-			insert_errors = [];
-			# now push the new rows to the table
-			insert_errors = bq_client.insert_rows(exchange_table, rows_to_insert);
+	# only proceed with bg look up and log parsing if we have any logs to deal with
+	if (len(logs) > 0):		
+		# pull the timestamps from bigquery for the blocks that we fetched
+		# get the bigquery client
+		bq_client = bigquery.Client()
+
+		block_table = get_block_info_table(bq_client);
+
+		# TODO only pull blocks for the exact logs that we have to
+	 
+		block_table_name = "`" + PROJECT_ID + "." + BLOCKS_DATASET_ID + "." + BLOCKS_TABLE_ID + "`"
+
+		# query all the blocks and their associated timestamps
+		block_query = bq_client.query("""
+	        SELECT
+	          CAST(block as STRING) as block, CAST(timestamp as INT64) as timestamp
+	        FROM """ + block_table_name + """
+	        WHERE block >= """ + str(last_updated_block_number) + """ and block <= """ + str(fetch_to_block_number) + """ order by block asc""")
+
+		block_results = block_query.result();
+
+		block_to_timestamps = {}
+
+		# fill the block -> timestamps map
+		for row in block_results:
+			block_to_timestamps[row.get("block")] = row.get("timestamp");
+
+		print("Pulled " + str(len(block_to_timestamps.keys())) + " block-to-timestamps from BQ");
+
+		# holds the rows that we'll insert into bigquery for this exchange
+		rows_to_insert = []
+
+		# track the latest block that we encounter
+		latest_block_encountered = 0;
+
+		try:
+			# for every log we pulled
+			for log in logs:			
+				# get the topic list
+				log_topics = log["topics"];
+
+				# parse out the first topic hash to determine what event this was
+				topic_hash = remove_0x_prefix(log_topics[0].hex());
+
+				# grab the event data that we generated above for this topic
+				event = topic_hashes[topic_hash];
+
+				# skip transfer events
+				if (event["event"] == "Transfer"):
+					continue;
+
+				block_number = log["blockNumber"];
+
+				# if we don't have a timestamp for this block then skip this log item
+				if ((str(block_number) in block_to_timestamps) == False):
+					print("No timestamp found for block " + str(block_number));
+					continue;
+
+				block_timestamp = block_to_timestamps[str(block_number)];
+
+				# track the maximum block number that we encounter
+				if (block_number > latest_block_encountered):
+					latest_block_encountered = block_number;
+
+				event_type = event["event"];
+
+				# prepare the object that we'll be putting into bigquery
+				event_clean = {
+					# "exchange" : exchange_address,
+					"event" : event_type,
+					"tx_hash" : log["transactionHash"].hex(),
+					
+					"eth" : None,
+					"tokens" : None,
+
+					"user" : None,
+
+					"timestamp" : block_timestamp,
+
+					"block" : block_number
+				}
+
+				# for each of the rest of the topics (ie inputs)
+				for i in range(1, len(log_topics)):
+					# get the topic hash
+					topic = log_topics[i];
+
+					# remove any padding
+					topic = topic.hex().replace("0x000000000000000000000000", "0x");
+					
+					# get the type for this input
+					input_type = event["input_types"][i - 1];
+
+					# get the name for this input
+					input_name = event["input_names"][i - 1];
+					
+					# clean the amount of columns into just eth and token amounts
+					if ("eth_" in input_name):
+						input_name = "eth";
+					elif ("token" in input_name):
+						input_name = "tokens";
+					elif (("buyer" in input_name) or ("provider" in input_name)):
+						input_name = "user";
+
+					# if the type is address, just put into clean
+					if (input_type == 'address'):
+						event_clean[input_name] = topic;
+					elif (input_type == 'uint256'):
+						# else if it's an integer, parse it first
+						value = web3.toInt(hexstr=topic);
+
+						# modify value per event type
+						if (input_name == "eth"):
+							if ((event_type == "EthPurchase") or (event_type == "RemoveLiquidity")):
+								value = -value; # negative eth since the user is withdrawing eth from the pool
+						elif (input_name == "tokens"):
+							if ((event_type == "TokenPurchase") or (event_type == "RemoveLiquidity")):
+								value = -value; # negative tokens since the user is withdrawing tokens from the pool
+
+						# then put into clean
+						event_clean[input_name] = value;
+
+				rows_to_insert.append(event_clean);
+		except Exception as e:
+			# bail if we encounter any type of exception while parsing logs
+			print(e);
+			return "{error=" + str(e) + "}";
+
+		# get the dataset reference
+		exchange_dataset_ref = bq_client.dataset(bq_dataset_id)
 		
-			if (insert_errors == []):
-				latest_block_encountered += 1;
+		# get the table reference for this exchange's history
+		exchange_table_ref = exchange_dataset_ref.table(bq_table_prefix + exchange_address);
 
-				# success
-				print("Successfully inserted " + str(len(rows_to_insert)) + " (" + exchange_address + ") history rows. Updated last fetched block to " + str(latest_block_encountered));
+		# get the table
+		exchange_table = bq_client.get_table(exchange_table_ref);
 
-				# update most recent block we crawled
-				# update the datastore exchange info object for the next crawl call
-				exchange_info.update({
-					"last_updated_block" : latest_block_encountered
-		    	})
+		try:
+			# only try to insert into BQ if we have any rows
+			if (len(rows_to_insert) > 0):
+				insert_errors = [];
+				# now push the new rows to the table
+				insert_errors = bq_client.insert_rows(exchange_table, rows_to_insert);
+			
+				if (insert_errors == []):
+					latest_block_encountered += 1;
 
-				ds_client.put(exchange_info)
-		else:
-			print("0 rows to insert, skipping...");
-	except Exception as e:
-		print(e);
-		error = e;
+					# success
+					print("Successfully inserted " + str(len(rows_to_insert)) + " (" + exchange_address + ") history rows. Updated last fetched block to " + str(latest_block_encountered));
+
+					# update most recent block we crawled
+					# update the datastore exchange info object for the next crawl call
+					exchange_info.update({
+						"last_updated_block" : latest_block_encountered
+			    	})
+
+					ds_client.put(exchange_info)
+			else:
+				print("0 rows to insert, skipping...");
+		except Exception as e:
+			print(e);
+			error = e;
 
 	# if we didn't encounter any error then schedule a new fetch block task
 	if (error == None):
