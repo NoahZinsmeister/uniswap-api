@@ -31,6 +31,7 @@ import time
 import web3;
 
 from uniswap.history import v1_get_history
+from uniswap.ticker import v1_ticker
 
 PROJECT_ID = "uniswap-analytics"
 TASK_QUEUE_ID = "my-appengine-queue"
@@ -161,6 +162,10 @@ def fetch_blocks():
 @app.route('/api/v1/history')
 def api_v1_history():
 	return v1_get_history();
+
+@app.route('/api/v1/ticker')
+def api_v1_ticker():
+	return v1_ticker();
 
 # crawl an exchange's history
 @app.route('/tasks/crawl')
