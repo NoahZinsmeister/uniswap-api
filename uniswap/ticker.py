@@ -159,7 +159,7 @@ def v1_ticker():
 		"lastTradeEthQty" : str(last_trade_eth_qty),
 		"lastTradeErc20Qty" : str(last_trade_erc20_qty),
 
-		"volume" : str(eth_volume),
+		"tradeVolume" : str(eth_volume),
 		"count" : num_transactions
 	}
 		
