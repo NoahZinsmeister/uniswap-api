@@ -72,7 +72,13 @@ def v1_ticker():
 	num_transactions = 0;
 
 	eth_volume = 0;
-	last_eth_qty = 0;
+	
+	eth_liquidity = 0;
+	erc20_liquidity = 0;
+	
+	last_trade_price = 0;
+	last_trade_eth_qty = 0;
+	last_trade_erc20_qty = 0;
 
 	# TODO pull this value from datastore
 	provider_fee = 0.003;
@@ -113,28 +119,38 @@ def v1_ticker():
 		if (row_event == "EthPurchase" or row_event == "TokenPurchase"):
 			eth_volume += row_eth;
 
-			last_eth_qty = abs(row_eth);
+			last_trade_price = exchange_rate_before_transaction;
+
+			eth_liquidity = row_eth_liquidity;
+			erc20_liquidity = row_tokens_liquidity;
+
+			last_trade_eth_qty = row_eth;
+			last_trade_erc20_qty = row_tokens;
 
 	price_change = end_price - start_price;
 	price_change_percent = price_change / start_price;
 
 	result = {
 		"symbol" : symbol,
-		
-		"lastPrice" : end_price,
-		"lastQty" : last_eth_qty,
-		
-		"startTime" : start_time,
-		"endTime" : end_time,		
 
+		"startTime" : start_time,
+		"endTime" : end_time,
+		
+		"price" : end_price,
 		"highPrice" : highest_price,
 		"lowPrice" : lowest_price,
 
 		"priceChange" : price_change,
-		"priceChangePercent" : price_change_percent,
+		"priceChangePercent" : price_change_percent,		
 
-		"volume" : eth_volume,		
+		"ethLiquidity" : str(eth_liquidity),
+		"erc20Liquidity" : str(erc20_liquidity),
 
+		"lastTradePrice" : last_trade_price,
+		"lastTradeEthQty" : str(last_trade_eth_qty),
+		"lastTradeErc20Qty" : str(last_trade_erc20_qty),
+
+		"volume" : str(eth_volume),
 		"count" : num_transactions
 	}
 		
