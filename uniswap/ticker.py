@@ -80,6 +80,8 @@ def v1_ticker():
 	last_trade_eth_qty = 0;
 	last_trade_erc20_qty = 0;
 
+	weighted_avg_price_total = 0;
+
 	# TODO pull this value from datastore
 	provider_fee = 0.003;
 	# TODO pull this value from datastore
@@ -117,7 +119,7 @@ def v1_ticker():
 		num_transactions += 1;
 
 		if (row_event == "EthPurchase" or row_event == "TokenPurchase"):
-			eth_volume += row_eth;
+			eth_volume += abs(row_eth);
 
 			last_trade_price = exchange_rate_before_transaction;
 
@@ -127,8 +129,14 @@ def v1_ticker():
 			last_trade_eth_qty = row_eth;
 			last_trade_erc20_qty = row_tokens;
 
+			# for calculating average weighted price, take the amount of eth times the rate that they traded at
+			weighted_avg_price_total += (abs(row_eth) * exchange_rate_before_transaction);
+
 	price_change = end_price - start_price;
 	price_change_percent = price_change / start_price;
+
+	# calculate average weighted price
+	weighted_avg_price_total = weighted_avg_price_total / eth_volume;
 
 	result = {
 		"symbol" : symbol,
@@ -139,6 +147,7 @@ def v1_ticker():
 		"price" : end_price,
 		"highPrice" : highest_price,
 		"lowPrice" : lowest_price,
+		"weightedAvgPrice" : weighted_avg_price_total,
 
 		"priceChange" : price_change,
 		"priceChangePercent" : price_change_percent,		
