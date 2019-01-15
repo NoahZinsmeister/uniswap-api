@@ -1,8 +1,6 @@
 import json
 import time
 
-from flask import request
-
 from eth_utils import (
     add_0x_prefix,
     apply_to_return_value,
@@ -14,6 +12,24 @@ from eth_utils import (
     to_checksum_address,
     to_wei,
 )
+
+def load_exchange_info(ds_client, exchange_address):
+    exchange_address = to_checksum_address(exchange_address);
+
+    exchange_info = None;
+
+    # create the exchange info query
+    query = ds_client.query(kind='exchange');
+
+    query.add_filter("address", "=", exchange_address);
+
+    # run the query
+    query_iterator = query.fetch();
+    for entity in query_iterator:
+        exchange_info = entity;
+        break;
+
+    return exchange_info;
 
 def calculate_marginal_rate(eth_liquidity, tokens_liquidity):
     return tokens_liquidity / eth_liquidity;

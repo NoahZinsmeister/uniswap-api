@@ -6,8 +6,10 @@ import sys
 from flask import request
 
 from google.cloud import bigquery
+from google.cloud import datastore
 
 from uniswap.utils import calculate_marginal_rate
+from uniswap.utils import load_exchange_info
 
 from eth_utils import (
     add_0x_prefix,
@@ -83,8 +85,6 @@ def v1_ticker():
 	weighted_avg_price_total = 0;
 
 	# TODO pull this value from datastore
-	provider_fee = 0.003;
-	# TODO pull this value from datastore
 	symbol = "DAI"
 
 	# iterate through the results from oldest to newest (timestamp asc)
@@ -99,7 +99,7 @@ def v1_ticker():
 		# the exchange rate after this transaction was executed
 		exchange_rate_after_transaction = calculate_marginal_rate(row_eth_liquidity, row_tokens_liquidity);
 		# the exchange rate before this transaction was executed
-		exchange_rate_before_transaction = calculate_marginal_rate(row_eth_liquidity - row_eth, row_tokens_liquidity - row_tokens);
+		exchange_rate_before_transaction = calculate_marginal_rate(row_eth_liquidity - row_eth, row_tokens_liquidity - row_tokens);	
 
 		# track highest price
 		if (exchange_rate_after_transaction > highest_price):

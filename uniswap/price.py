@@ -7,8 +7,8 @@ from flask import request
 
 from google.cloud import datastore
 
-from uniswap.utils import calculate_rate
 from uniswap.utils import calculate_marginal_rate
+from uniswap.utils import load_exchange_info
 
 from eth_utils import (
     add_0x_prefix,
@@ -34,22 +34,7 @@ def v1_price():
     if (exchange_address is None):
     	return "{error:missing parameter}" # TODO return actual error
 
-    exchange_address = to_checksum_address(exchange_address)
-
-    exchange_info = None;
-
-    ds_client = datastore.Client();
-
-    # create the exchange info query
-    query = ds_client.query(kind='exchange');
-
-    query.add_filter("address", "=", exchange_address);
-
-    # run the query
-    query_iterator = query.fetch();
-    for entity in query_iterator:
-        exchange_info = entity;
-        break;
+    exchange_info = load_exchange_info(datastore.Client(), exchange_address);
 
     if (exchange_info == None):
         return "{error: no exchange found for this address}" # TODO return a proper json error
