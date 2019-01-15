@@ -8,6 +8,7 @@ from flask import request
 from google.cloud import datastore
 
 from uniswap.utils import calculate_rate
+from uniswap.utils import calculate_marginal_rate
 
 from eth_utils import (
     add_0x_prefix,
@@ -52,14 +53,11 @@ def v1_price():
 
     if (exchange_info == None):
         return "{error: no exchange found for this address}" # TODO return a proper json error
-
-    # TODO pull this value from datastore
-    provider_fee = 0.003;
     
     result = {
         "symbol" : exchange_info["symbol"],
         
-        "price" : calculate_rate(int(exchange_info["cur_eth_total"]), int(exchange_info["cur_tokens_total"]), provider_fee)
+        "price" : calculate_marginal_rate(int(exchange_info["cur_eth_total"]), int(exchange_info["cur_tokens_total"]))
     }
         
     return json.dumps(result);
