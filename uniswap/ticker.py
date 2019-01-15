@@ -77,7 +77,7 @@ def v1_ticker():
 
 	num_transactions = 0;
 
-	eth_volume = 0;
+	eth_trade_volume = 0;
 	
 	eth_liquidity = 0;
 	erc20_liquidity = 0;
@@ -120,7 +120,7 @@ def v1_ticker():
 		num_transactions += 1;
 
 		if (row_event == "EthPurchase" or row_event == "TokenPurchase"):
-			eth_volume += abs(row_eth);
+			eth_trade_volume += abs(row_eth);
 
 			last_trade_price = exchange_rate_before_transaction;
 
@@ -137,7 +137,7 @@ def v1_ticker():
 	price_change_percent = price_change / start_exchange_rate;
 
 	# calculate average weighted price
-	weighted_avg_price_total = weighted_avg_price_total / eth_volume;
+	weighted_avg_price_total = weighted_avg_price_total / eth_trade_volume;
 
 	result = {
 		"symbol" : exchange_info["symbol"],
@@ -160,7 +160,7 @@ def v1_ticker():
 		"lastTradeEthQty" : str(last_trade_eth_qty),
 		"lastTradeErc20Qty" : str(last_trade_erc20_qty),
 
-		"tradeVolume" : str(eth_volume),
+		"tradeVolume" : str(eth_trade_volume),
 		"count" : num_transactions
 	}
 		
