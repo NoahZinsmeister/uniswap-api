@@ -35,7 +35,11 @@ def v1_ticker():
 	if (exchange_address is None):
 		return "{error:missing parameter}" # TODO return actual error
 
-	exchange_address = to_checksum_address(exchange_address)
+	# load the datastore exchange info
+	exchange_info = load_exchange_info(datastore.Client(), exchange_address);
+
+	if (exchange_info == None):
+		return "{error: no exchange found for this address}" # TODO return a proper json error
 
 	# use current time as end time
 	end_time = int(time.time());
@@ -46,7 +50,7 @@ def v1_ticker():
 	# pull the transactions from this exchange
 	bq_client = bigquery.Client()
 
-	exchange_table_id = "exchange_history_" + exchange_address;
+	exchange_table_id = "exchange_history_" + to_checksum_address(exchange_address);
  
 	exchange_table_name = "`" + PROJECT_ID + "." + EXCHANGES_DATASET_ID + "." + exchange_table_id + "`"
 
@@ -83,9 +87,6 @@ def v1_ticker():
 	last_trade_erc20_qty = 0;
 
 	weighted_avg_price_total = 0;
-
-	# TODO pull this value from datastore
-	symbol = "DAI"
 
 	# iterate through the results from oldest to newest (timestamp asc)
 	for row in exchange_results:
@@ -139,7 +140,7 @@ def v1_ticker():
 	weighted_avg_price_total = weighted_avg_price_total / eth_volume;
 
 	result = {
-		"symbol" : symbol,
+		"symbol" : exchange_info["symbol"],
 
 		"startTime" : start_time,
 		"endTime" : end_time,
