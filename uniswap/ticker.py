@@ -7,7 +7,7 @@ from flask import request
 
 from google.cloud import bigquery
 
-from uniswap.utils import calculate_rate
+from uniswap.utils import calculate_marginal_rate
 
 from eth_utils import (
     add_0x_prefix,
@@ -63,8 +63,8 @@ def v1_ticker():
 
 	exchange_results = exchange_query.result();
 
-	start_price = -1;
-	end_price = -1;
+	start_exchange_rate = -1;
+	end_exchange_rate = -1;
 	
 	highest_price = -1;
 	lowest_price = sys.maxsize;
@@ -97,9 +97,9 @@ def v1_ticker():
 		row_tokens_liquidity = int(row.get("tokens_liquidity"));
 
 		# the exchange rate after this transaction was executed
-		exchange_rate_after_transaction = calculate_rate(row_eth_liquidity, row_tokens_liquidity, provider_fee);
+		exchange_rate_after_transaction = calculate_marginal_rate(row_eth_liquidity, row_tokens_liquidity);
 		# the exchange rate before this transaction was executed
-		exchange_rate_before_transaction = calculate_rate(row_eth_liquidity - row_eth, row_tokens_liquidity - row_tokens, provider_fee);
+		exchange_rate_before_transaction = calculate_marginal_rate(row_eth_liquidity - row_eth, row_tokens_liquidity - row_tokens);
 
 		# track highest price
 		if (exchange_rate_after_transaction > highest_price):
@@ -110,11 +110,11 @@ def v1_ticker():
 			lowest_price = exchange_rate_after_transaction;
 
 		# if we haven't set a start price yet, take the exchange rate before this transaction
-		if (start_price < 0):
-			start_price = exchange_rate_before_transaction
+		if (start_exchange_rate < 0):
+			start_exchange_rate = exchange_rate_before_transaction
 
 		# override the end_price with each transaction to get the latest
-		end_price = exchange_rate_after_transaction;
+		end_exchange_rate = exchange_rate_after_transaction;
 
 		num_transactions += 1;
 
@@ -132,8 +132,8 @@ def v1_ticker():
 			# for calculating average weighted price, take the amount of eth times the rate that they traded at
 			weighted_avg_price_total += (abs(row_eth) * exchange_rate_before_transaction);
 
-	price_change = end_price - start_price;
-	price_change_percent = price_change / start_price;
+	price_change = end_exchange_rate - start_exchange_rate;
+	price_change_percent = price_change / start_exchange_rate;
 
 	# calculate average weighted price
 	weighted_avg_price_total = weighted_avg_price_total / eth_volume;
@@ -144,7 +144,7 @@ def v1_ticker():
 		"startTime" : start_time,
 		"endTime" : end_time,
 		
-		"price" : end_price,
+		"price" : calculate_marginal_rate(eth_liquidity, erc20_liquidity),
 		"highPrice" : highest_price,
 		"lowPrice" : lowest_price,
 		"weightedAvgPrice" : weighted_avg_price_total,
