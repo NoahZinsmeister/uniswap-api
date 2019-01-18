@@ -34,6 +34,7 @@ from uniswap.history import v1_get_history
 from uniswap.ticker import v1_ticker
 from uniswap.price import v1_price
 from uniswap.exchange import v1_get_exchange
+from uniswap.directory import v1_directory
 
 PROJECT_ID = "uniswap-analytics"
 TASK_QUEUE_ID = "my-appengine-queue"
@@ -176,6 +177,10 @@ def api_v1_ticker():
 @app.route('/api/v1/price')
 def api_v1_price():
 	return v1_price();
+
+@app.route('/api/v1/directory')
+def api_v1_directory():
+	return v1_directory();
 
 # crawl an exchange's history
 @app.route('/tasks/crawl')
