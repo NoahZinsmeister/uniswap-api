@@ -39,6 +39,7 @@ def v1_directory():
 		exchanges.append({
 			"symbol" : entity["symbol"],
 			"name" : entity["name"],
+			"exchangeAddress" : entity["address"],
 			"tokenAddress" : entity["token_address"],
 			"tokenDecimals" : entity["token_decimals"]
 		});
