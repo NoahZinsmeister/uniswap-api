@@ -1,4 +1,6 @@
 from flask import Flask
+from flask_cors import CORS
+
 from flask import request
 
 import traceback
@@ -49,6 +51,7 @@ MAX_BLOCKS_TO_CRAWL = 10000 # estimating 12 seconds per block, 5 blocks per minu
 web3 = web3.Web3(web3.Web3.HTTPProvider(PROVIDER_URL))
 
 app = Flask(__name__)
+CORS(app)
 
 @app.route('/')
 def index():

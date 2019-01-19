@@ -1,4 +1,5 @@
 Flask==1.0.2
+Flask-Cors==3.0.7
 Werkzeug==0.14.1
 grpcio>=1.2.0
 google-cloud-datastore==1.6.0
