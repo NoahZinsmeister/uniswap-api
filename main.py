@@ -37,6 +37,7 @@ from uniswap.ticker import v1_ticker
 from uniswap.price import v1_price
 from uniswap.exchange import v1_get_exchange
 from uniswap.directory import v1_directory
+from uniswap.user import v1_get_user
 
 PROJECT_ID = "uniswap-analytics"
 TASK_QUEUE_ID = "my-appengine-queue"
@@ -168,6 +169,10 @@ def fetch_blocks():
 @app.route('/api/v1/history')
 def api_v1_history():
 	return v1_get_history();
+
+@app.route('/api/v1/user')
+def api_v1_user():
+	return v1_get_user();
 
 @app.route('/api/v1/exchange')
 def api_v1_exchange():
