@@ -79,8 +79,8 @@ def v1_ticker():
 
 	eth_trade_volume = 0;
 	
-	eth_liquidity = 0;
-	erc20_liquidity = 0;
+	eth_liquidity = int(exchange_info["cur_eth_total"]);
+	erc20_liquidity = int(exchange_info["cur_tokens_total"]);
 	
 	last_trade_price = 0;
 	last_trade_eth_qty = 0;
