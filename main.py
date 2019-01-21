@@ -502,6 +502,16 @@ def crawl_exchange():
 			tb = traceback.format_exc()
 			print(tb);	
 			error = e;
+	else:
+		print("Updated last fetched block to " + str(fetch_to_block_number + 1));
+
+		# update most recent block we crawled
+		# update the datastore exchange info object for the next crawl call
+		exchange_info.update({
+			"last_updated_block" : (fetch_to_block_number + 1)
+    	})
+
+		ds_client.put(exchange_info)
 
 	# if we didn't encounter any error then schedule a new fetch block task
 	if (error == None):
