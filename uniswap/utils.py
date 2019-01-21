@@ -32,7 +32,10 @@ def load_exchange_info(ds_client, exchange_address):
     return exchange_info;
 
 def calculate_marginal_rate(eth_liquidity, tokens_liquidity):
-    return tokens_liquidity / eth_liquidity;
+    if (eth_liquidity != 0):
+        return tokens_liquidity / eth_liquidity;
+    else:
+        return 0;
 
 def calculate_rate(eth_liquidity, tokens_liquidity, provider_fee):
 	input_eth_with_fee = 1 - provider_fee

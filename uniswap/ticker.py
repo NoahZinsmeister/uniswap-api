@@ -137,7 +137,8 @@ def v1_ticker():
 	price_change_percent = price_change / start_exchange_rate;
 
 	# calculate average weighted price
-	weighted_avg_price_total = weighted_avg_price_total / eth_trade_volume;
+	if (eth_trade_volume != 0):
+		weighted_avg_price_total = weighted_avg_price_total / eth_trade_volume;
 
 	result = {
 		"symbol" : exchange_info["symbol"],
