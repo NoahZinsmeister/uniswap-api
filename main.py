@@ -297,9 +297,15 @@ def crawl_exchange():
 
 	fetch_to_block_number = last_updated_block_number + MAX_BLOCKS_TO_CRAWL;
 
-	print("fetching exchange logs from block " + str(last_updated_block_number) + " to " + str(fetch_to_block_number));
-
 	try:
+		# fetch the current block to cap the request at
+		current_block_data = web3.eth.getBlock('latest');
+
+		current_block_number = int(current_block_data["number"]);
+
+		fetch_to_block_number = min(fetch_to_block_number, current_block_number);
+
+		print("fetching exchange logs from block " + str(last_updated_block_number) + " to " + str(fetch_to_block_number));
 		# grab all the contract logs for this exchange (since the last updated crawled block)
 		logs = web3.eth.getLogs(
 		    {
