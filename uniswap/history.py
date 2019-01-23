@@ -43,7 +43,8 @@ def v1_get_history():
 	exchange_query = bq_client.query("""
         SELECT 
        		CAST(event as STRING) as event, CAST(tx_hash as STRING) as tx_hash, CAST(user as STRING) as user, CAST(eth as STRING) as eth,
-       		CAST(tokens as STRING) as tokens, CAST(block as INT64) as block, CAST(timestamp as INT64) as timestamp
+       		CAST(tokens as STRING) as tokens, CAST(block as INT64) as block, CAST(timestamp as INT64) as timestamp,
+       		CAST(cur_eth_total as STRING) as cur_eth_total, CAST(cur_tokens_total as STRING) as cur_tokens_total
         FROM """ + exchange_table_name + """
          WHERE timestamp >= """ + str(start_time) + """ and timestamp <= """ + str(end_time) + """ order by timestamp desc""")
 
@@ -56,8 +57,13 @@ def v1_get_history():
 			"tx" : row.get("tx_hash"),
 			"user" : row.get("user"),
 			"block" : row.get("block"),
+			
 			"ethAmount" : row.get("eth"),
+			"curEthLiquidity" : row.get("cur_eth_total"),
+			
 			"tokenAmount" : row.get("tokens"),
+			"curTokenLiquidity" : row.get("cur_tokens_total"),
+
 			"timestamp" : row.get("timestamp"),
 			"event" : row.get("event"),
 		})
