@@ -521,7 +521,7 @@ def crawl_exchange():
 
 	# if we didn't encounter any error then schedule a new fetch block task
 	if (error == None):
-		delay_in_seconds = 60 * 15; # update exchanges every 15 minutes
+		delay_in_seconds = 60 * 5; # update exchanges every 5 minutes
 
 		scheduleTask(delay_in_seconds, "/tasks/crawl?exchange=" + exchange_address);
 
