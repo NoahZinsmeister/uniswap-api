@@ -28,7 +28,9 @@ PROJECT_ID = "uniswap-analytics"
 
 EXCHANGES_DATASET_ID = "exchanges_v1"
 
-# return all the transactions for an exchange between startTime and endTime (inclusive)
+TICKER_NUM_HOURS = 24
+
+# return summary data for an exchange for past TICKER_NUM_HOURS hours
 def v1_ticker():
 	exchange_address = request.args.get("exchangeAddress");
 	
@@ -44,8 +46,8 @@ def v1_ticker():
 	# use current time as end time
 	end_time = int(time.time());
 	
-	# pull logs from 24 hours ago
-	start_time = end_time - (60 * 60 * 24);
+	# pull logs from TICKER_NUM_HOURS hours ago
+	start_time = end_time - (60 * 60 * TICKER_NUM_HOURS);
 
 	# pull the transactions from this exchange
 	bq_client = bigquery.Client()
@@ -123,9 +125,6 @@ def v1_ticker():
 			eth_trade_volume += abs(row_eth);
 
 			last_trade_price = exchange_rate_before_transaction;
-
-			eth_liquidity = row_eth_liquidity;
-			erc20_liquidity = row_tokens_liquidity;
 
 			last_trade_eth_qty = row_eth;
 			last_trade_erc20_qty = row_tokens;
