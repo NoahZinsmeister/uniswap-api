@@ -6,4 +6,4 @@ google-cloud-datastore==1.6.0
 google-cloud-bigquery==0.31.0
 google-api-core==1.7.0
 google-cloud-tasks==0.3.0
-web3==4.0.0
+web3==4.8.2

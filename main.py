@@ -363,6 +363,8 @@ def crawl_exchange():
 		# used to track the current token total in the exchange pool
 		cur_tokens_total = int(exchange_info["cur_tokens_total"]);
 
+		print("cur_eth_total = " + str(cur_eth_total));
+
 		try:
 			# for every log we pulled
 			for log in logs:			
@@ -454,6 +456,8 @@ def crawl_exchange():
 						event_clean[input_name] = str(value);
 
 				cur_eth_total += int(event_clean["eth"]);
+
+				print("cur_eth_total after " + str(event_clean["tx_hash"]) + " = " + str(cur_eth_total));
 
 				cur_tokens_total += int(event_clean["tokens"]);
 
