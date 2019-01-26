@@ -303,7 +303,8 @@ def crawl_exchange():
 
 		current_block_number = int(current_block_data["number"]);
 
-		fetch_to_block_number = min(fetch_to_block_number, current_block_number);
+		# don't pull up to the very latest block as we're seeing log inconsistencies (possible that 'latest' block changes down the line?)
+		fetch_to_block_number = min(fetch_to_block_number, current_block_number - 5);
 
 		print("fetching exchange logs from block " + str(last_updated_block_number) + " to " + str(fetch_to_block_number));
 		# grab all the contract logs for this exchange (since the last updated crawled block)
