@@ -39,14 +39,17 @@ def v1_get_history():
  
 	exchange_table_name = "`" + PROJECT_ID + "." + EXCHANGES_DATASET_ID + "." + exchange_table_id + "`"
 
-	# query all the blocks and their associated timestamps
-	exchange_query = bq_client.query("""
+	bq_query_sql = """
         SELECT 
        		CAST(event as STRING) as event, CAST(tx_hash as STRING) as tx_hash, CAST(user as STRING) as user, CAST(eth as STRING) as eth,
        		CAST(tokens as STRING) as tokens, CAST(block as INT64) as block, CAST(timestamp as INT64) as timestamp,
        		CAST(cur_eth_total as STRING) as cur_eth_total, CAST(cur_tokens_total as STRING) as cur_tokens_total
         FROM """ + exchange_table_name + """
-         WHERE timestamp >= """ + str(start_time) + """ and timestamp <= """ + str(end_time) + """ order by timestamp desc""")
+         WHERE timestamp >= """ + str(start_time) + """ and timestamp <= """ + str(end_time) + """ group by event, timestamp, eth, tokens, cur_eth_total, cur_tokens_total, tx_hash, user, block """ + """ order by timestamp desc""";
+
+	print(bq_query_sql);
+	# query all the blocks and their associated timestamps
+	exchange_query = bq_client.query(bq_query_sql);
 
 	exchange_results = exchange_query.result();
 
