@@ -4,6 +4,7 @@ from flask_cors import CORS
 from flask import request
 
 import traceback
+import sys
 
 from google.cloud import bigquery
 from google.cloud import datastore
@@ -311,7 +312,7 @@ def crawl_exchange():
 		logs = web3.eth.getLogs(
 		    {
 	     	   	"fromBlock": last_updated_block_number,
-	        	"toBlock": (fetch_to_block_number),
+	        	"toBlock": fetch_to_block_number,
 	        	"address": [
 	            	exchange_address
 	        	]
@@ -332,7 +333,17 @@ def crawl_exchange():
 
 		block_table = get_block_info_table(bq_client);
 
-		# TODO only pull blocks for the exact logs that we have to
+		# only pull blocks for the exact logs that we have to
+		earliest_block_data_to_load = sys.maxsize
+		latest_block_data_to_load = -1;
+
+		for log in logs:
+			log_block_num = log["blockNumber"];
+			
+			if (log_block_num < earliest_block_data_to_load):
+				earliest_block_data_to_load = log_block_num
+			if (log_block_num > latest_block_data_to_load):
+				latest_block_data_to_load = log_block_num;
 	 
 		block_table_name = "`" + PROJECT_ID + "." + BLOCKS_DATASET_ID + "." + BLOCKS_TABLE_ID + "`"
 
@@ -341,7 +352,7 @@ def crawl_exchange():
 	        SELECT
 	          CAST(block as STRING) as block, CAST(timestamp as INT64) as timestamp
 	        FROM """ + block_table_name + """
-	        WHERE block >= """ + str(last_updated_block_number) + """ and block <= """ + str(fetch_to_block_number) + """ order by block asc""")
+	        WHERE block >= """ + str(earliest_block_data_to_load) + """ and block <= """ + str(latest_block_data_to_load) + """ order by block asc""")
 
 		block_results = block_query.result();
 
@@ -368,7 +379,7 @@ def crawl_exchange():
 
 		try:
 			# for every log we pulled
-			for log in logs:			
+			for log in logs:
 				# get the topic list
 				log_topics = log["topics"];
 
