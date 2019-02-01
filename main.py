@@ -196,6 +196,12 @@ def api_v1_directory():
 def crawl_exchange():
 	# get the exchange address parameter
 	exchange_address_param = request.args.get("exchange");
+
+	next_crawl_in_seconds = request.args.get("recrawlTime");
+
+	# this allows us to have different update speeds for different exchanges if we like
+	if (next_crawl_in_seconds is None):
+		next_crawl_in_seconds = 60 * 5; # default if not specified is 5 minutes
 	
 	if (exchange_address_param is None):
 		return "{error}" #TODO return actual json error
@@ -537,9 +543,7 @@ def crawl_exchange():
 
 	# if we didn't encounter any error then schedule a new fetch block task
 	if (error == None):
-		delay_in_seconds = 60 * 5; # update exchanges every 5 minutes
-
-		scheduleTask(delay_in_seconds, "/tasks/crawl?exchange=" + exchange_address);
+		scheduleTask(int(next_crawl_in_seconds), "/tasks/crawl?exchange=" + exchange_address + "&recrawlTime=" + str(next_crawl_in_seconds));
 
 	return "{error=" + str(error) + "}";
 
