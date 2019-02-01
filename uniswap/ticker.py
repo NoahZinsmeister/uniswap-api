@@ -164,5 +164,8 @@ def v1_ticker():
 		"tradeVolume" : str(eth_trade_volume),
 		"count" : num_transactions
 	}
+
+	if ("theme" in exchange_info):
+		result["theme"] = exchange_info["theme"];
 		
 	return json.dumps(result);

@@ -36,12 +36,17 @@ def v1_directory():
 		if (entity == None):
 			continue;
 
-		exchanges.append({
+		exchange = {
 			"symbol" : entity["symbol"],
 			"name" : entity["name"],
 			"exchangeAddress" : entity["address"],
 			"tokenAddress" : entity["token_address"],
 			"tokenDecimals" : entity["token_decimals"]
-		});
+		}
+
+		if ("theme" in entity):
+			exchange["theme"] = entity["theme"];
+
+		exchanges.append(exchange);
 
 	return json.dumps(exchanges);
