@@ -140,13 +140,18 @@ def v1_ticker():
 	if (eth_trade_volume != 0):
 		weighted_avg_price_total = weighted_avg_price_total / eth_trade_volume;
 
+	marginal_rate = calculate_marginal_rate(eth_liquidity, erc20_liquidity);
+	inv_marginal_rate = 1 / marginal_rate;
+
 	result = {
 		"symbol" : exchange_info["symbol"],
 
 		"startTime" : start_time,
 		"endTime" : end_time,
 		
-		"price" : calculate_marginal_rate(eth_liquidity, erc20_liquidity),
+		"price" : marginal_rate,
+		"invPrice" : inv_marginal_rate,
+		
 		"highPrice" : highest_price,
 		"lowPrice" : lowest_price,
 		"weightedAvgPrice" : weighted_avg_price_total,
