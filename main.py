@@ -38,6 +38,7 @@ from uniswap.ticker import v1_ticker
 from uniswap.price import v1_price
 from uniswap.exchange import v1_get_exchange
 from uniswap.directory import v1_directory
+from uniswap.stats import v1_stats
 from uniswap.user import v1_get_user
 
 PROJECT_ID = "uniswap-analytics"
@@ -190,6 +191,10 @@ def api_v1_price():
 @app.route('/api/v1/directory')
 def api_v1_directory():
 	return v1_directory();
+
+@app.route('/api/v1/stats')
+def api_v1_stats():
+	return v1_stats();
 
 # crawl an exchange's history
 @app.route('/tasks/crawl')
