@@ -22,32 +22,50 @@ PROJECT_ID = "uniswap-analytics"
 EXCHANGES_DATASET_ID = "exchanges_v1"
 
 # return all the transactions for an exchange between startTime and endTime (inclusive)
+# or given an endTime (inclusive) and count (for paging)
 def v1_get_history():
 	exchange_address = request.args.get("exchangeAddress");
-	start_time = request.args.get("startTime");
 	end_time = request.args.get("endTime");
 
-	if ((exchange_address is None) or (start_time is None) or (end_time is None)):
+	if ((exchange_address is None) or (end_time is None)):
 		return "{error:missing parameter}" # TODO return actual error
 
 	exchange_address = to_checksum_address(exchange_address)
 
-	# pull the transactions from this exchange
+	# check if we were provided a count
+	history_count = request.args.get("count");
+
 	bq_client = bigquery.Client()
 
 	exchange_table_id = "exchange_history_" + exchange_address;
- 
+
 	exchange_table_name = "`" + PROJECT_ID + "." + EXCHANGES_DATASET_ID + "." + exchange_table_id + "`"
 
-	bq_query_sql = """
-        SELECT 
-       		CAST(event as STRING) as event, CAST(tx_hash as STRING) as tx_hash, CAST(user as STRING) as user, CAST(eth as STRING) as eth,
-       		CAST(tokens as STRING) as tokens, CAST(block as INT64) as block, CAST(timestamp as INT64) as timestamp,
-       		CAST(cur_eth_total as STRING) as cur_eth_total, CAST(cur_tokens_total as STRING) as cur_tokens_total
-        FROM """ + exchange_table_name + """
-         WHERE timestamp >= """ + str(start_time) + """ and timestamp <= """ + str(end_time) + """ group by event, timestamp, eth, tokens, cur_eth_total, cur_tokens_total, tx_hash, user, block """ + """ order by timestamp desc""";
+	# if no count provided, then check for start time
+	if (history_count is None):
+		start_time = request.args.get("startTime");		
+
+		if (start_time is None):
+			return "{error:missing parameter}" # TODO return actual error
+
+		bq_query_sql = """
+	        SELECT 
+	       		CAST(event as STRING) as event, CAST(tx_hash as STRING) as tx_hash, CAST(user as STRING) as user, CAST(eth as STRING) as eth,
+	       		CAST(tokens as STRING) as tokens, CAST(block as INT64) as block, CAST(timestamp as INT64) as timestamp,
+	       		CAST(cur_eth_total as STRING) as cur_eth_total, CAST(cur_tokens_total as STRING) as cur_tokens_total
+	        FROM """ + exchange_table_name + """
+	         WHERE timestamp >= """ + str(start_time) + """ and timestamp <= """ + str(end_time) + """ group by event, timestamp, eth, tokens, cur_eth_total, cur_tokens_total, tx_hash, user, block """ + """ order by timestamp desc, tx_hash asc""";
+	else:	         
+		bq_query_sql = """
+	        SELECT 
+	       		CAST(event as STRING) as event, CAST(tx_hash as STRING) as tx_hash, CAST(user as STRING) as user, CAST(eth as STRING) as eth,
+	       		CAST(tokens as STRING) as tokens, CAST(block as INT64) as block, CAST(timestamp as INT64) as timestamp,
+	       		CAST(cur_eth_total as STRING) as cur_eth_total, CAST(cur_tokens_total as STRING) as cur_tokens_total
+	        FROM """ + exchange_table_name + """
+	         WHERE timestamp <= """ + str(end_time) + """ group by event, timestamp, eth, tokens, cur_eth_total, cur_tokens_total, tx_hash, user, block """ + """ order by timestamp desc, tx_hash asc limit """ + history_count;
 
 	print(bq_query_sql);
+
 	# query all the blocks and their associated timestamps
 	exchange_query = bq_client.query(bq_query_sql);
 

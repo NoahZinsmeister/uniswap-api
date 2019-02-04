@@ -63,7 +63,7 @@ def v1_ticker():
         		CAST(eth as STRING) as eth, CAST(tokens as STRING) as tokens,
         		CAST(cur_eth_total as STRING) as eth_liquidity, CAST(cur_tokens_total as STRING) as tokens_liquidity
          FROM """ + exchange_table_name + """
-          WHERE (timestamp >= """ + str(start_time) + """ and timestamp <= """ + str(end_time) + """)""" + """ group by event, timestamp, eth, tokens, cur_eth_total, cur_tokens_total, tx_hash """ + """ order by timestamp asc"""
+          WHERE (timestamp >= """ + str(start_time) + """ and timestamp <= """ + str(end_time) + """)""" + """ group by event, timestamp, eth, tokens, cur_eth_total, cur_tokens_total, tx_hash """ + """ order by timestamp desc, tx_hash asc"""
 
 	print(bq_query_sql)
 
