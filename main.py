@@ -162,7 +162,7 @@ def fetch_blocks():
 
 	# if we didn't encounter any error then schedule a new fetch block task
 	if (error == None):
-		delay_in_seconds = 60 * 5; # update blocks every 5 minutes
+		delay_in_seconds = 60 * 2; # update blocks every 2 minutes
 
 		scheduleTask(delay_in_seconds, "/tasks/fetchblocks"); 
 
