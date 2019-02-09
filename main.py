@@ -40,6 +40,7 @@ from uniswap.exchange import v1_get_exchange
 from uniswap.directory import v1_directory
 from uniswap.stats import v1_stats
 from uniswap.user import v1_get_user
+from uniswap.charts import v1_chart
 
 PROJECT_ID = "uniswap-analytics"
 TASK_QUEUE_ID = "my-appengine-queue"
@@ -187,6 +188,10 @@ def api_v1_ticker():
 @app.route('/api/v1/price')
 def api_v1_price():
 	return v1_price();
+
+@app.route('/api/v1/chart')
+def api_v1_chart():
+	return v1_chart();
 
 @app.route('/api/v1/directory')
 def api_v1_directory():
