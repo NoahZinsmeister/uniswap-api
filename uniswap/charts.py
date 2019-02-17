@@ -34,11 +34,13 @@ def v1_chart():
     exchange_address = request.args.get("exchangeAddress");
     start_time = request.args.get("startTime");
     end_time = request.args.get("endTime");
+    unit_type = request.args.get("unit");
 
-    if ((exchange_address is None) or (start_time is None) or (end_time is None)):
+    if ((exchange_address is None) or (start_time is None) or (end_time is None) or (unit_type is None)):
     	return "{error:missing parameter}" # TODO return actual error
 
     exchange_address = to_checksum_address(exchange_address)
+    unit_type = unit_type.lower();
 
     # query ETH and token balances, taking Purchase and Liquidity events
     bq_client = bigquery.Client()
@@ -46,7 +48,7 @@ def v1_chart():
     exchange_table_id = "exchange_history_" + exchange_address;
     exchange_table_name = "`" + PROJECT_ID + "." + EXCHANGES_DATASET_ID + "." + exchange_table_id + "`"
 
-    timestamp_table_id = "day_timestamps_1"
+    timestamp_table_id = unit_type + "_timestamps"
     timestamp_table_name = "`" + PROJECT_ID + "." + BLOCKS_DATASET_ID + "." + timestamp_table_id + "`"
 
     bq_query_sql = """
@@ -55,8 +57,8 @@ def v1_chart():
         FROM """ + exchange_table_name + """ a
          join """ + timestamp_table_name + """ b
          on a.timestamp >= b.startTime and a.timestamp <= b.endTime
-         where (event = 'TokenPurchase' or event = 'EthPurchase' or event = 'RemoveLiquidity' or event = 'AddLiquidity')
-            and ((startTime >= """ + start_time + """) and (endTime <= """ + end_time + """))
+         where (a.event = 'TokenPurchase' or a.event = 'EthPurchase' or a.event = 'RemoveLiquidity' or a.event = 'AddLiquidity')
+            and ((a.timestamp >= """ + start_time + """) and (a.timestamp <= """ + end_time + """))
          group by endTime, startTime, b.date
         order by startTime asc""";
 
@@ -96,8 +98,8 @@ def v1_chart():
         FROM """ + exchange_table_name + """ a
          join """ + timestamp_table_name + """ b
          on a.timestamp >= b.startTime and a.timestamp <= b.endTime
-         where (event = 'TokenPurchase' or event = 'EthPurchase')
-            and ((startTime >= """ + start_time + """) and (endTime <= """ + end_time + """))
+         where (a.event = 'TokenPurchase' or a.event = 'EthPurchase')
+            and ((a.timestamp >= """ + start_time + """) and (a.timestamp <= """ + end_time + """))
          group by endTime, startTime, b.date
         order by startTime asc""";
 
