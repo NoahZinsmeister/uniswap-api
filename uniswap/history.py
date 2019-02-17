@@ -43,7 +43,7 @@ def v1_get_history():
 
 	# if no count provided, then check for start time
 	if (history_count is None):
-		start_time = request.args.get("startTime");		
+		start_time = request.args.get("startTime");
 
 		if (start_time is None):
 			return "{error:missing parameter}" # TODO return actual error

@@ -29,11 +29,13 @@ EXCHANGES_DATASET_ID = "exchanges_v1"
 BLOCKS_DATASET_ID = "blocks_v1"
 
 # return curret exchange price
-# TODO take a bucket type (day, week, month)
+# TODO take a unit type (day, week, month)
 def v1_chart():
     exchange_address = request.args.get("exchangeAddress");
+    start_time = request.args.get("startTime");
+    end_time = request.args.get("endTime");
 
-    if (exchange_address is None):
+    if ((exchange_address is None) or (start_time is None) or (end_time is None)):
     	return "{error:missing parameter}" # TODO return actual error
 
     exchange_address = to_checksum_address(exchange_address)
@@ -53,7 +55,8 @@ def v1_chart():
         FROM """ + exchange_table_name + """ a
          join """ + timestamp_table_name + """ b
          on a.timestamp >= b.startTime and a.timestamp <= b.endTime
-         where event = 'TokenPurchase' or event = 'EthPurchase' or event = 'RemoveLiquidity' or event = 'AddLiquidity'
+         where (event = 'TokenPurchase' or event = 'EthPurchase' or event = 'RemoveLiquidity' or event = 'AddLiquidity')
+            and ((startTime >= """ + start_time + """) and (endTime <= """ + end_time + """))
          group by endTime, startTime, b.date
         order by startTime asc""";
 
@@ -93,7 +96,8 @@ def v1_chart():
         FROM """ + exchange_table_name + """ a
          join """ + timestamp_table_name + """ b
          on a.timestamp >= b.startTime and a.timestamp <= b.endTime
-         where event = 'TokenPurchase' or event = 'EthPurchase'
+         where (event = 'TokenPurchase' or event = 'EthPurchase')
+            and ((startTime >= """ + start_time + """) and (endTime <= """ + end_time + """))
          group by endTime, startTime, b.date
         order by startTime asc""";
 
