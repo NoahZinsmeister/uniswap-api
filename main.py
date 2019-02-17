@@ -135,8 +135,6 @@ def fetch_blocks():
 
 		time.sleep(0.1); # partial sleep to manage any rate limits on provider
 
-	error = None;
-
 	try:
 		insert_errors = [];
 
@@ -158,14 +156,12 @@ def fetch_blocks():
 
 			ds_client.put(block_datastore_info)
 	except Exception as e:
-		error = e;
+		# error = e;
 		print(str(error));
 
-	# if we didn't encounter any error then schedule a new fetch block task
-	if (error == None):
-		delay_in_seconds = 60 * 2; # update blocks every 2 minutes
+	delay_in_seconds = 60 * 2; # update blocks every 2 minutes
 
-		scheduleTask(delay_in_seconds, "/tasks/fetchblocks"); 
+	scheduleTask(delay_in_seconds, "/tasks/fetchblocks"); 
 
 	return "{" + str(error) + "}" #todo actual json error
 
