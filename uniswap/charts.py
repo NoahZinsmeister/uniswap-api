@@ -6,6 +6,7 @@ import sys
 from flask import request
 
 from google.cloud import bigquery
+from google.cloud import datastore
 
 from uniswap.utils import calculate_marginal_rate
 from uniswap.utils import load_exchange_info
@@ -29,7 +30,6 @@ EXCHANGES_DATASET_ID = "exchanges_v1"
 BLOCKS_DATASET_ID = "blocks_v1"
 
 # return curret exchange price
-# TODO take a unit type (day, week, month)
 def v1_chart():
     exchange_address = request.args.get("exchangeAddress");
     start_time = request.args.get("startTime");
@@ -38,6 +38,9 @@ def v1_chart():
 
     if ((exchange_address is None) or (start_time is None) or (end_time is None) or (unit_type is None)):
     	return "{error:missing parameter}" # TODO return actual error
+
+    # load the datastore exchange info
+    exchange_info = load_exchange_info(datastore.Client(), exchange_address);
 
     exchange_address = to_checksum_address(exchange_address)
     unit_type = unit_type.lower();
@@ -75,6 +78,9 @@ def v1_chart():
     running_eth_total = 0;
     running_tokens_total = 0;
 
+    token_decimals = exchange_info["token_decimals"];
+
+
     for row in balances_results:
         eth_amount = int(row.get("eth_amount"));
         token_amount = int(row.get("token_amount"));
@@ -85,8 +91,8 @@ def v1_chart():
         bucket_rate = running_tokens_total / running_eth_total;
 
         balances_by_bucket.append({
-            "ethLiquidity" : str(running_eth_total),
-            "tokenLiquidity" : str(running_tokens_total),
+            "ethLiquidity" : running_eth_total / 1e18,
+            "tokenLiquidity" : running_tokens_total / (10**token_decimals),
             "marginalEthRate" : bucket_rate,
             "date" : row.get("date"),
         });
@@ -113,7 +119,7 @@ def v1_chart():
 
     index = 0;
     for row in volume_results:
-        balances_by_bucket[index]["ethVolume"] = row.get("trade_volume")
+        balances_by_bucket[index]["ethVolume"] = int(row.get("trade_volume")) / 1e18
         index += 1;
 
     return json.dumps(balances_by_bucket);
