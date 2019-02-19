@@ -7,8 +7,14 @@ import web3;
 
 from flask import request
 
+from google.cloud import tasks_v2beta3
+from google.protobuf import timestamp_pb2
+
 from google.cloud import bigquery
 from google.cloud import datastore
+
+from datetime import datetime
+from datetime import timedelta
 
 from uniswap.utils import calculate_marginal_rate
 from uniswap.utils import load_exchange_info
@@ -26,15 +32,42 @@ from eth_utils import (
     to_wei,
 )
 
+# TODO move these to shared utils
 PROJECT_ID = "uniswap-analytics"
 PROVIDER_URL = "https://chainkit-1.dev.kyokan.io/eth";
+
+TASK_QUEUE_ID = "my-appengine-queue"
 
 BLOCKS_DATASET_ID = "blocks_v1"
 BLOCKS_TABLE_ID = "block_data"
 
+GENSIS_BLOCK_NUMBER = 6627917 # Uniswap creation https://etherscan.io/tx/0xc1b2646d0ad4a3a151ebdaaa7ef72e3ab1aa13aa49d0b7a3ca020f5ee7b1b010
 MAX_BLOCKS_TO_CRAWL = 10000 # estimating 12 seconds per block, 5 blocks per minute, 2000 minutes, ~33 hours worth of transactions
 
 web3 = web3.Web3(web3.Web3.HTTPProvider(PROVIDER_URL))
+
+# Schedules a cloud task to call the given endpoint in delay_in_seconds
+# TODO move this to shared utils
+def scheduleTask(delay_in_seconds, endpoint):
+    # schedule the next call to refresh debts here
+    task_client = tasks_v2beta3.CloudTasksClient()
+
+    # Convert "seconds from now" into an rfc3339 datetime string.
+    d = datetime.utcnow() + timedelta(seconds=delay_in_seconds);
+    timestamp = timestamp_pb2.Timestamp();
+    timestamp.FromDatetime(d);
+    
+    parent = task_client.queue_path(PROJECT_ID, "us-east1", TASK_QUEUE_ID);
+
+    task = {
+        'app_engine_http_request': {
+            'http_method': 'GET',
+            'relative_uri': endpoint
+        },
+        'schedule_time' : timestamp
+    }
+    
+    task_client.create_task(parent, task);
 
 # return curret exchange price
 def v1_crawl_exchange():
@@ -78,8 +111,6 @@ def v1_crawl_exchange():
         return "{error: no exchange found for this address}" # TODO return a proper json error
 
     last_updated_block_number = exchange_info["last_updated_block"];
-
-    last_updated_block_number -= 100;
  
     # if the last updated block number hasn't been set, then initialize it to the uniswap genesis block number (so we don't )
     # try pulling from very first block which is slow
@@ -245,14 +276,18 @@ def v1_crawl_exchange():
                 if (event["event"] == "Transfer"):
                     continue;
 
-                block_number = log["blockNumber"];
+                block_number = log["blockNumber"];                
 
                 # if we don't have a timestamp for this block then skip this log item
                 if ((str(block_number) in block_to_timestamps) == False):
                     print("No timestamp found for block " + str(block_number));
                     continue;
 
+                transaction_index = log["transactionIndex"];
+
                 block_timestamp = block_to_timestamps[str(block_number)];
+
+                block_date = datetime.utcfromtimestamp(block_timestamp);
 
                 # track the maximum block number that we encounter
                 if (block_number > latest_block_encountered):
@@ -264,7 +299,10 @@ def v1_crawl_exchange():
                 event_clean = {
                     # "exchange" : exchange_address,
                     "event" : event_type,
+
                     "tx_hash" : log["transactionHash"].hex(),
+                    "tx_index" : transaction_index,
+                    "tx_order" : (block_number * 10000) + transaction_index, # tx_order is a single number for determining distinct transactions and order
                     
                     "eth" : None,
                     "tokens" : None,
@@ -275,6 +313,9 @@ def v1_crawl_exchange():
                     "user" : None,
 
                     "timestamp" : block_timestamp,
+                    "day" : block_date.strftime("%Y-%m-%d"),
+                    "month" : block_date.strftime("%Y-%m"),
+                    "year" : block_date.strftime("%Y"),
 
                     "block" : block_number
                 }

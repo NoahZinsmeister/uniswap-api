@@ -1,0 +1,8 @@
+exchange_history
+
+event:STRING,tx_hash:STRING,user:STRING,eth:STRING,tokens:STRING,block:INTEGER,timestamp:NUMERIC,cur_eth_total:STRING,cur_tokens_total:STRING,day:STRING,month:STRING,year:STRING,tx_index:INTEGER,tx_order:NUMERIC
+
+
+block_data
+
+block:Numeric,timestamp:Numeric

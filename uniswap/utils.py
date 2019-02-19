@@ -16,6 +16,24 @@ from eth_utils import (
 BLOCKS_DATASET_ID = "blocks_v1"
 BLOCKS_TABLE_ID = "block_data"
 
+def load_exchange_cache(ds_client, exchange_address):
+    exchange_address = to_checksum_address(exchange_address);
+
+    exchange_cache = None;
+
+    # create the exchange info query
+    query = ds_client.query(kind='cache');
+
+    query.add_filter("address", "=", exchange_address);
+
+    # run the query
+    query_iterator = query.fetch();
+    for entity in query_iterator:
+        exchange_cache = entity;
+        break;
+
+    return exchange_cache;
+
 def load_exchange_info(ds_client, exchange_address):
     exchange_address = to_checksum_address(exchange_address);
 
