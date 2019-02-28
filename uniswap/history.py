@@ -51,18 +51,22 @@ def v1_get_history():
 		bq_query_sql = """
 	        SELECT 
 	       		CAST(event as STRING) as event, CAST(tx_hash as STRING) as tx_hash, CAST(user as STRING) as user, CAST(eth as STRING) as eth,
+	       		CAST(tx_index as INT64) as tx_index, CAST(tx_order as STRING),
 	       		CAST(tokens as STRING) as tokens, CAST(block as INT64) as block, CAST(timestamp as INT64) as timestamp,
 	       		CAST(cur_eth_total as STRING) as cur_eth_total, CAST(cur_tokens_total as STRING) as cur_tokens_total
 	        FROM """ + exchange_table_name + """
-	         WHERE timestamp >= """ + str(start_time) + """ and timestamp <= """ + str(end_time) + """ group by event, timestamp, eth, tokens, cur_eth_total, cur_tokens_total, tx_hash, user, block """ + """ order by timestamp desc, tx_hash asc""";
+	         WHERE timestamp >= """ + str(start_time) + """ and timestamp <= """ + str(end_time) + """
+	         group by event, timestamp, eth, tokens, cur_eth_total, cur_tokens_total, tx_hash, user, block, tx_index, tx_order  """ + """ order by tx_order desc""";
 	else:	         
 		bq_query_sql = """
 	        SELECT 
 	       		CAST(event as STRING) as event, CAST(tx_hash as STRING) as tx_hash, CAST(user as STRING) as user, CAST(eth as STRING) as eth,
+	       		CAST(tx_index as INT64) as tx_index, CAST(tx_order as STRING),
 	       		CAST(tokens as STRING) as tokens, CAST(block as INT64) as block, CAST(timestamp as INT64) as timestamp,
 	       		CAST(cur_eth_total as STRING) as cur_eth_total, CAST(cur_tokens_total as STRING) as cur_tokens_total
 	        FROM """ + exchange_table_name + """
-	         WHERE timestamp <= """ + str(end_time) + """ group by event, timestamp, eth, tokens, cur_eth_total, cur_tokens_total, tx_hash, user, block """ + """ order by timestamp desc, tx_hash asc limit """ + history_count;
+	         WHERE timestamp <= """ + str(end_time) + """ group
+	         by event, timestamp, eth, tokens, cur_eth_total, cur_tokens_total, tx_hash, user, block, tx_index, tx_order """ + """ order by tx_order desc limit """ + history_count;
 
 	print(bq_query_sql);
 
@@ -75,18 +79,19 @@ def v1_get_history():
 
 	for row in exchange_results:
 		history.append({
-			"tx" : row.get("tx_hash"),
+			"event" : row.get("event"),
 			"user" : row.get("user"),
+			"timestamp" : row.get("timestamp"),
+			
+			"tx" : row.get("tx_hash"),
 			"block" : row.get("block"),
+			"transaction_index" :  row.get("tx_index"),
 			
 			"ethAmount" : row.get("eth"),
 			"curEthLiquidity" : row.get("cur_eth_total"),
 			
 			"tokenAmount" : row.get("tokens"),
-			"curTokenLiquidity" : row.get("cur_tokens_total"),
-
-			"timestamp" : row.get("timestamp"),
-			"event" : row.get("event"),
+			"curTokenLiquidity" : row.get("cur_tokens_total")
 		})
 		
 	return json.dumps(history);

@@ -51,19 +51,13 @@ def v1_chart():
     exchange_table_id = "exchange_history_" + exchange_address;
     exchange_table_name = "`" + PROJECT_ID + "." + EXCHANGES_DATASET_ID + "." + exchange_table_id + "`"
 
-    timestamp_table_id = unit_type + "_timestamps"
-    timestamp_table_name = "`" + PROJECT_ID + "." + BLOCKS_DATASET_ID + "." + timestamp_table_id + "`"
-
     bq_query_sql = """
-        SELECT 
-            CAST(sum(cast(a.eth as numeric)) as STRING) as eth_amount, CAST(sum(cast(a.tokens as numeric)) as STRING) as token_amount, cast(b.startTime as STRING), cast(b.endTime as string), b.date as date
-        FROM """ + exchange_table_name + """ a
-         join """ + timestamp_table_name + """ b
-         on a.timestamp >= b.startTime and a.timestamp <= b.endTime
-         where (a.event = 'TokenPurchase' or a.event = 'EthPurchase' or a.event = 'RemoveLiquidity' or a.event = 'AddLiquidity')
-            and ((a.timestamp >= """ + start_time + """) and (a.timestamp <= """ + end_time + """))
-         group by endTime, startTime, b.date
-        order by startTime asc""";
+    	SELECT cast(sum(cast(eth as numeric)) as string) as eth_amount, cast(sum(cast(tokens as numeric)) as string) as token_amount, """ + unit_type + """ as date
+    	FROM """ + exchange_table_name + """
+    	where (event = 'TokenPurchase' or event = 'EthPurchase' or event = 'RemoveLiquidity' or event = 'AddLiquidity')
+    		and ((timestamp >= """ + start_time + """) and (timestamp <= """ + end_time + """))
+    	group by """ + unit_type + """
+    	order by """ + unit_type + """ asc """
 
     print(bq_query_sql);
 
@@ -99,15 +93,12 @@ def v1_chart():
 
     # now query for trade volume
     bq_query_sql = """
-        SELECT 
-              cast(sum(abs(cast(a.eth as numeric))) as string) as trade_volume, cast(b.startTime as string), cast(b.endTime as string), b.date
-        FROM """ + exchange_table_name + """ a
-         join """ + timestamp_table_name + """ b
-         on a.timestamp >= b.startTime and a.timestamp <= b.endTime
-         where (a.event = 'TokenPurchase' or a.event = 'EthPurchase')
-            and ((a.timestamp >= """ + start_time + """) and (a.timestamp <= """ + end_time + """))
-         group by endTime, startTime, b.date
-        order by startTime asc""";
+    	SELECT cast(sum(abs(cast(eth as numeric))) as string) as trade_volume, """ + unit_type + """
+    	FROM """ + exchange_table_name + """
+    	where (event = 'TokenPurchase' or event = 'EthPurchase')
+    		and ((timestamp >= """ + start_time + """) and (timestamp <= """ + end_time + """))
+    	group by """ + unit_type + """
+    	order by """ + unit_type + """ asc """
 
     print(bq_query_sql);
 
