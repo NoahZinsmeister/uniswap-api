@@ -3,7 +3,7 @@ import time
 
 import sys
 
-from flask import request
+from flask import request, jsonify
 
 from google.cloud import datastore
 
@@ -32,12 +32,12 @@ def v1_price():
     exchange_address = request.args.get("exchangeAddress");
 
     if (exchange_address is None):
-    	return "{error:missing parameter}" # TODO return actual error
+        return jsonify(error='missing parameter: exchangeAddress'), 400
 
     exchange_info = load_exchange_info(datastore.Client(), exchange_address);
 
     if (exchange_info == None):
-        return "{error: no exchange found for this address}" # TODO return a proper json error
+        return jsonify(error='no exchange found for this address'), 404
     
     result = {
         "symbol" : exchange_info["symbol"],
@@ -45,4 +45,4 @@ def v1_price():
         "price" : calculate_marginal_rate(int(exchange_info["cur_eth_total"]), int(exchange_info["cur_tokens_total"]))
     }
         
-    return json.dumps(result);
+    return jsonify(result)

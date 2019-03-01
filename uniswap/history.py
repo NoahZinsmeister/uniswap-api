@@ -1,6 +1,6 @@
 import json
 
-from flask import request
+from flask import request, jsonify
 
 from google.cloud import bigquery
 
@@ -28,7 +28,7 @@ def v1_get_history():
 	end_time = request.args.get("endTime");
 
 	if ((exchange_address is None) or (end_time is None)):
-		return "{error:missing parameter}" # TODO return actual error
+		return jsonify(error='missing parameter: exchangeAddress'), 400
 
 	exchange_address = to_checksum_address(exchange_address)
 
@@ -46,7 +46,7 @@ def v1_get_history():
 		start_time = request.args.get("startTime");
 
 		if (start_time is None):
-			return "{error:missing parameter}" # TODO return actual error
+			return jsonify(error='missing parameter: startTime'), 400
 
 		bq_query_sql = """
 	        SELECT 
@@ -94,4 +94,4 @@ def v1_get_history():
 			"curTokenLiquidity" : row.get("cur_tokens_total")
 		})
 		
-	return json.dumps(history);
+	return jsonify(history)

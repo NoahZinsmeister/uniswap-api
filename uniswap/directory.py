@@ -3,7 +3,7 @@ import time
 
 import sys
 
-from flask import request
+from flask import request, jsonify
 
 from google.cloud import bigquery
 from google.cloud import datastore
@@ -49,4 +49,4 @@ def v1_directory():
 
 		exchanges.append(exchange);
 
-	return json.dumps(exchanges);
+	return jsonify(exchanges)

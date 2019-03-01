@@ -3,7 +3,7 @@ import time
 
 import sys
 
-from flask import request
+from flask import request, jsonify
 
 from google.cloud import bigquery
 from google.cloud import datastore
@@ -29,7 +29,7 @@ def v1_stats():
 	order_by = request.args.get("orderBy");
 
 	if (order_by is None):
-		return "{error:missing parameter}" # TODO return actual error
+		return jsonify(error='missing parameter: orderBy'), 400
 
 	query = datastore.Client().query(kind='exchange');
 
