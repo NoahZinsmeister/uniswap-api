@@ -5,7 +5,7 @@ import sys
 
 import web3;
 
-from flask import request
+from flask import request, jsonify
 
 from google.cloud import tasks_v2beta3
 from google.protobuf import timestamp_pb2
@@ -81,15 +81,15 @@ def v1_crawl_exchange():
         next_crawl_in_seconds = 60 * 5; # default if not specified is 5 minutes
     
     if (exchange_address_param is None):
-        return "{error}" #TODO return actual json error
+        return jsonify(error='missing parameter: exchange'), 400
 
     exchange_address = None;
 
     try:
         exchange_address = to_checksum_address(exchange_address_param)
     except Exception as e:
-        print(e);
-        return "{error}"; # TODO return actual json insert_errors
+        print(e)
+        return jsonify(error='invalid exchange address'), 400
 
     # query the exchange info to pull the last updated block number
     exchange_info = None;
@@ -108,7 +108,7 @@ def v1_crawl_exchange():
         break;
 
     if (exchange_info == None):
-        return "{error: no exchange found for this address}" # TODO return a proper json error
+        return jsonify(error='no exchange found for this address'), 404
 
     last_updated_block_number = exchange_info["last_updated_block"];
  
@@ -202,7 +202,7 @@ def v1_crawl_exchange():
             }
         )
     except Exception as e:
-        return "{" + str(e) + "}"; # TODO actual json error
+        return jsonify(error=str(e)), 500
 
     print("received " + str(len(logs)) + " exchange logs");
 
@@ -375,9 +375,8 @@ def v1_crawl_exchange():
         except Exception as e:
             # bail if we encounter any type of exception while parsing logs
             tb = traceback.format_exc()
-            print(tb);
-            
-            return "{error=" + str(e) + "}";
+            print(tb)
+            return jsonify(error=str(e)), 500
 
         # get the dataset reference
         exchange_dataset_ref = bq_client.dataset(bq_dataset_id)
@@ -432,4 +431,4 @@ def v1_crawl_exchange():
     if (error == None):
         scheduleTask(int(next_crawl_in_seconds), "/tasks/crawl?exchange=" + exchange_address + "&recrawlTime=" + str(next_crawl_in_seconds));
 
-    return "{error=" + str(error) + "}";
+    return jsonify(error=str(error)), 500

@@ -5,7 +5,7 @@ import web3
 
 import sys
 
-from flask import request
+from flask import request, jsonify
 
 from google.cloud import datastore
 
@@ -34,9 +34,9 @@ def v1_get_user():
     exchange_address = request.args.get("exchangeAddress");
 
     if (user_address is None):
-        return "{error:missing parameter}" # TODO return actual error
+        return jsonify(error='missing parameter: userAddress'), 400
     if (exchange_address is None):
-        return "{error:missing parameter}" # TODO return actual error
+        return jsonify(error='missing parameter: exchangeAddress'), 400
 
     user_address = to_checksum_address(user_address)
     exchange_address = to_checksum_address(exchange_address)
@@ -57,5 +57,5 @@ def v1_get_user():
         "poolTokenSupply" : str(total_pool_tokens),
         "userNumPoolTokens" : str(user_pool_tokens),
         "userPoolPercent" : user_percent
-    };
-    return json.dumps(result);
+    }
+    return jsonify(result)
