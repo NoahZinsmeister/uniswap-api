@@ -1,6 +1,7 @@
 import json
 import time
 
+import traceback
 import sys
 
 import web3;
@@ -274,6 +275,8 @@ def v1_crawl_exchange():
 
                 # skip transfer events
                 if (event["event"] == "Transfer"):
+                    continue;
+                elif (event["event"] == "Approval"):
                     continue;
 
                 block_number = log["blockNumber"];                
