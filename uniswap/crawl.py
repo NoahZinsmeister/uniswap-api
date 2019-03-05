@@ -433,5 +433,6 @@ def v1_crawl_exchange():
     # if we didn't encounter any error then schedule a new fetch block task
     if (error == None):
         scheduleTask(int(next_crawl_in_seconds), "/tasks/crawl?exchange=" + exchange_address + "&recrawlTime=" + str(next_crawl_in_seconds));
-
-    return jsonify(error=str(error)), 500
+        return jsonify(error=str(error)), 200
+    else:
+    	return jsonify(error=str(error)), 500
