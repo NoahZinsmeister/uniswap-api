@@ -4,7 +4,7 @@ import math;
 
 import sys
 
-from flask import request
+from flask import request, jsonify
 
 from google.cloud import bigquery
 from google.cloud import datastore
@@ -39,7 +39,7 @@ def v1_ticker():
 	exchange_address = request.args.get("exchangeAddress");
 	
 	if (exchange_address is None):
-		return "{error:missing parameter}" # TODO return actual error
+		return jsonify(error='missing parameter: exchangeAddress'), 400
 
 	# use current time as end time
 	end_time = int(time.time());
@@ -64,7 +64,7 @@ def v1_ticker():
 	exchange_info = load_exchange_info(ds_client, exchange_address);
 
 	if (exchange_info == None):
-		return "{error: no exchange found for this address}" # TODO return a proper json error
+		return jsonify(error='no exchange found for this address'), 404
 
 	eth_liquidity = int(exchange_info["cur_eth_total"]);
 	erc20_liquidity = int(exchange_info["cur_tokens_total"]);
@@ -245,4 +245,4 @@ def v1_ticker():
 	if ("theme" in exchange_info):
 		result["theme"] = exchange_info["theme"];
 		
-	return json.dumps(result);
+	return jsonify(result)

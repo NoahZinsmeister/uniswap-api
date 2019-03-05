@@ -3,7 +3,7 @@ import time
 
 import sys
 
-from flask import request
+from flask import request, jsonify
 
 from google.cloud import bigquery
 from google.cloud import datastore
@@ -37,7 +37,7 @@ def v1_chart():
     unit_type = request.args.get("unit");
 
     if ((exchange_address is None) or (start_time is None) or (end_time is None) or (unit_type is None)):
-    	return "{error:missing parameter}" # TODO return actual error
+        return jsonify(error='exchangeAddress, startTime, endTime and unit required'), 400
 
     # load the datastore exchange info
     exchange_info = load_exchange_info(datastore.Client(), exchange_address);
@@ -113,4 +113,4 @@ def v1_chart():
         balances_by_bucket[index]["ethVolume"] = int(row.get("trade_volume")) / 1e18
         index += 1;
 
-    return json.dumps(balances_by_bucket);
+    return jsonify(balances_by_bucket)
